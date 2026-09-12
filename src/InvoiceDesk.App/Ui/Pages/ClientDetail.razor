@@ -120,11 +120,28 @@
                     <dl class="facts">
                         <div><dt>Email</dt><dd>@(c.Email.Length > 0 ? c.Email : "–")</dd></div>
                         <div><dt>Phone</dt><dd>@(c.Phone.Length > 0 ? c.Phone : "–")</dd></div>
+                        <div>
+                            <dt>Website</dt>
+                            <dd>
+                                @if (c.Website.Length > 0)
+                                {
+                                    <a href="@WebAddress.Href(c.Website)">@WebAddress.Display(c.Website)</a>
+                                }
+                                else
+                                {
+                                    <text>–</text>
+                                }
+                            </dd>
+                        </div>
+                        @if (c.InvoiceNote.Length > 0)
+                        {
+                            <div><dt>On their invoices</dt><dd>@c.InvoiceNote</dd></div>
+                        }
                         <div><dt>Address</dt><dd>@(c.Address.Length > 0 ? c.Address : "–")</dd></div>
                         <div><dt>ABN</dt><dd class="num">@(c.Abn.Length > 0 ? Abn.Format(c.Abn) : "–")</dd></div>
                         @if (c.Notes.Length > 0)
                         {
-                            <div><dt>Notes</dt><dd>@c.Notes</dd></div>
+                            <div><dt>Private notes</dt><dd>@c.Notes</dd></div>
                         }
                     </dl>
                     <button type="button" class="btn btn-sm mt-16" @onclick="() => _editing = true"><Icon Name="edit" Size="14" /> Edit details</button>

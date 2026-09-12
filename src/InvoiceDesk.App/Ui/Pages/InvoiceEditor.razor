@@ -106,6 +106,10 @@
                             <label for="invoice-client">Client</label>
                             <ClientPicker Id="invoice-client" Clients="_clients" ClientId="_invoice.ClientId" ClientIdChanged="OnClientChanged"
                                           OnNewClient="OpenNewClient" Invalid="@(_triedIssue && _invoice.ClientId <= 0)" Disabled="Locked" />
+                            @if (_invoice.Client is { InvoiceNote.Length: > 0 } picked)
+                            {
+                                <span class="hint">Their invoice note prints too: @picked.InvoiceNote</span>
+                            }
                         </div>
                         <div class="field">
                             <label for="invoice-issue">Issue date</label>

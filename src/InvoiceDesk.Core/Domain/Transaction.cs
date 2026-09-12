@@ -11,6 +11,7 @@ public class Transaction
     public Category? Category { get; set; }
     public string Party { get; set; } = "";
     public string Description { get; set; } = "";
+    public string Notes { get; set; } = "";
     public int? InvoiceId { get; set; }
     public Invoice? Invoice { get; set; }
     public PaymentMethod Method { get; set; }

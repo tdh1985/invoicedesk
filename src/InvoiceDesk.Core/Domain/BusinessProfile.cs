@@ -10,6 +10,7 @@ public class BusinessProfile
     public string Address { get; set; } = "";
     public string Email { get; set; } = "";
     public string Phone { get; set; } = "";
+    public string Website { get; set; } = "";
     public int? LogoAttachmentId { get; set; }
     public Attachment? LogoAttachment { get; set; }
     public string BankAccountName { get; set; } = "";
@@ -23,6 +24,10 @@ public class BusinessProfile
     public bool GstRegistered { get; set; } = true;
     public int GstRateBasisPoints { get; set; } = 1000;
     public string FooterNote { get; set; } = "Thank you for your business.";
+    public string DefaultInvoiceNotes { get; set; } = "";
+
+    // for the owner only, never printed
+    public string PrivateNotes { get; set; } = "";
 
     public BusinessProfile Clone() => (BusinessProfile)MemberwiseClone();
 }

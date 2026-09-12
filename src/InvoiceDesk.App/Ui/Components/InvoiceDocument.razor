@@ -34,6 +34,10 @@
                 {
                     <div class="doc-small">@Profile.Phone</div>
                 }
+                @if (Profile.Website.Length > 0)
+                {
+                    <div class="doc-small"><a class="doc-link" href="@WebAddress.Href(Profile.Website)">@WebAddress.Display(Profile.Website)</a></div>
+                }
             </div>
         </div>
         <div class="doc-title">
@@ -59,6 +63,14 @@
                 @if (Abn.IsValid(client.Abn))
                 {
                     <div class="doc-small">ABN @Abn.Format(client.Abn)</div>
+                }
+                @if (client.Website.Length > 0)
+                {
+                    <div class="doc-small"><a class="doc-link" href="@WebAddress.Href(client.Website)">@WebAddress.Display(client.Website)</a></div>
+                }
+                @if (client.InvoiceNote.Length > 0)
+                {
+                    <div class="doc-client-note doc-pre">@client.InvoiceNote</div>
                 }
             }
             else

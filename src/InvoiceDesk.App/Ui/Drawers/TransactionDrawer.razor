@@ -75,6 +75,11 @@
                         <label for="tx-description">Description</label>
                         <input id="tx-description" class="input" placeholder="What it was for" @bind="_tx.Description" />
                     </div>
+                    <div class="field span-2">
+                        <label for="tx-notes">Notes</label>
+                        <textarea id="tx-notes" class="textarea" rows="3" placeholder="Warranty dates, what it was used for, anything worth remembering" @bind="_tx.Notes"></textarea>
+                        <span class="hint">Only you see these. Search on the Money page finds them.</span>
+                    </div>
                 </div>
 
                 <div class="field">

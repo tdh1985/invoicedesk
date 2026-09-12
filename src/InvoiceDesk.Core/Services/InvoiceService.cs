@@ -24,6 +24,7 @@ public sealed class InvoiceService(
             Status = InvoiceStatus.Draft,
             GstEnabled = profile.GstRegistered,
             GstRateBasisPoints = profile.GstRateBasisPoints,
+            Notes = profile.DefaultInvoiceNotes,
             Lines = [new InvoiceLine { Quantity = 1 }],
         };
     }

@@ -47,9 +47,13 @@
                             <label for="biz-phone">Phone</label>
                             <input id="biz-phone" type="tel" class="input" @bind="_profile.Phone" @bind:event="oninput" @bind:after="MarkDirty" />
                         </div>
-                        <div class="field span-2">
+                        <div class="field">
                             <label for="biz-email">Email</label>
                             <input id="biz-email" type="email" class="input" @bind="_profile.Email" @bind:event="oninput" @bind:after="MarkDirty" />
+                        </div>
+                        <div class="field">
+                            <label for="biz-website">Website</label>
+                            <input id="biz-website" class="input" placeholder="Optional" @bind="_profile.Website" @bind:event="oninput" @bind:after="MarkDirty" />
                         </div>
                         <div class="field span-2">
                             <label for="biz-address">Address</label>
@@ -78,6 +82,12 @@
                                     }
                                 </div>
                             </div>
+                        </div>
+                        <div class="field span-2">
+                            <label for="biz-private">Notes for yourself</label>
+                            <textarea id="biz-private" class="textarea" rows="3" placeholder="Licence numbers, insurance renewals, reminders"
+                                      @bind="_profile.PrivateNotes" @bind:event="oninput" @bind:after="MarkDirty"></textarea>
+                            <span class="hint">Only you see these. They're never printed.</span>
                         </div>
                     </div>
                 </section>
@@ -131,6 +141,12 @@
                             <label for="inv-footer">Footer note</label>
                             <textarea id="inv-footer" class="textarea" rows="2" @bind="_profile.FooterNote" @bind:event="oninput" @bind:after="MarkDirty"></textarea>
                             <span class="hint">Printed at the bottom of every invoice.</span>
+                        </div>
+                        <div class="field span-2">
+                            <label for="inv-default-notes">Default notes for new invoices</label>
+                            <textarea id="inv-default-notes" class="textarea" rows="3" placeholder="For example: Payment within 14 days, thanks!"
+                                      @bind="_profile.DefaultInvoiceNotes" @bind:event="oninput" @bind:after="MarkDirty"></textarea>
+                            <span class="hint">Fills in the notes box on each new invoice. You can still change it on any invoice.</span>
                         </div>
                     </div>
                 </section>

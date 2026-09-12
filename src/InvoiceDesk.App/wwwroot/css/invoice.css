@@ -66,6 +66,16 @@
     border-top: 1px solid var(--doc-rule);
 }
 .doc-client { margin-bottom: 3px; font-size: 15px; font-weight: 600; }
+.doc-link { color: inherit; text-decoration: none; }
+/* a per-client line such as a purchase order number */
+.doc-client-note {
+    margin-top: 8px;
+    padding: 5px 10px;
+    border-left: 2px solid var(--doc-accent);
+    background: #F6F7F9;
+    color: var(--doc-ink);
+    font-size: 12px;
+}
 .doc-dates { display: grid; grid-template-columns: auto 1fr; align-content: start; gap: 6px 20px; margin: 0; }
 .doc-dates dt { color: var(--doc-ink-3); font-size: 12px; font-weight: 600; padding-top: 1px; }
 .doc-dates dd { margin: 0; text-align: right; font-family: var(--doc-num); }

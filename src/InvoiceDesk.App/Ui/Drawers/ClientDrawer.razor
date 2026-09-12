@@ -30,12 +30,21 @@
                     <input id="client-phone" type="tel" class="input" @bind="_client.Phone" />
                 </div>
                 <div class="field span-2">
+                    <label for="client-website">Website</label>
+                    <input id="client-website" class="input" placeholder="Optional" @bind="_client.Website" />
+                </div>
+                <div class="field span-2">
                     <label for="client-address">Address</label>
                     <textarea id="client-address" class="textarea" rows="3" @bind="_client.Address"></textarea>
                     <span class="hint">Printed under "Bill to" on invoices.</span>
                 </div>
                 <div class="field span-2">
-                    <label for="client-notes">Notes</label>
+                    <label for="client-invoice-note">Note on their invoices</label>
+                    <textarea id="client-invoice-note" class="textarea" rows="2" placeholder="For example: PO 4471, or Attention: Accounts Payable" @bind="_client.InvoiceNote"></textarea>
+                    <span class="hint">Printed on every invoice to this client.</span>
+                </div>
+                <div class="field span-2">
+                    <label for="client-notes">Private notes</label>
                     <textarea id="client-notes" class="textarea" rows="2" @bind="_client.Notes"></textarea>
                     <span class="hint">Only you see these.</span>
                 </div>

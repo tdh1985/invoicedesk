@@ -176,6 +176,7 @@
         .Where(t => _search.Trim().Length == 0
                     || t.Party.Contains(_search.Trim(), StringComparison.OrdinalIgnoreCase)
                     || t.Description.Contains(_search.Trim(), StringComparison.OrdinalIgnoreCase)
+                    || t.Notes.Contains(_search.Trim(), StringComparison.OrdinalIgnoreCase)
                     || (t.Invoice?.Number.Contains(_search.Trim(), StringComparison.OrdinalIgnoreCase) ?? false));
 
     protected override async Task OnInitializedAsync()

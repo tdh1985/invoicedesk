@@ -21,7 +21,7 @@ public sealed class TransactionService(IDbContextFactory<AppDbContext> factory, 
 
         var term = Text.Clean(filter.Search);
         return (await query.ToListAsync())
-            .Where(t => term.Length == 0 || Text.Has(t.Party, term) || Text.Has(t.Description, term)
+            .Where(t => term.Length == 0 || Text.Has(t.Party, term) || Text.Has(t.Description, term) || Text.Has(t.Notes, term)
                         || Text.Has(t.Category?.Name, term) || Text.Has(t.Invoice?.Number, term))
             .OrderByDescending(t => t.Date)
             .ThenByDescending(t => t.Id)
@@ -64,6 +64,7 @@ public sealed class TransactionService(IDbContextFactory<AppDbContext> factory, 
         entity.CategoryId = t.CategoryId;
         entity.Party = Text.Clean(t.Party);
         entity.Description = Text.Clean(t.Description);
+        entity.Notes = Text.Clean(t.Notes);
         entity.Method = t.Method;
         entity.InvoiceId = t.InvoiceId;
 

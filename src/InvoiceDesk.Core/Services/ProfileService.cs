@@ -73,6 +73,7 @@ public sealed partial class ProfileService(IDbContextFactory<AppDbContext> facto
     {
         var errors = new List<string>();
         if (p.Abn.Length > 0 && !Abn.IsValid(p.Abn)) errors.Add("ABN must be 11 digits and pass the ATO check.");
+        if (p.Website.Length > 0 && !WebAddress.IsValid(p.Website)) errors.Add("That website doesn't look right. Use something like www.yourbusiness.com.au.");
         if (!HexColour().IsMatch(p.AccentColour)) errors.Add("Accent colour must look like #4F46E5.");
         if (p.Bsb.Length > 0 && !BsbFormat().IsMatch(p.Bsb)) errors.Add("BSB must be 6 digits.");
         if (p.NumberPadding is < 0 or > 8) errors.Add("Number padding must be between 0 and 8.");
@@ -90,6 +91,9 @@ public sealed partial class ProfileService(IDbContextFactory<AppDbContext> facto
         p.Address = Text.Clean(p.Address);
         p.Email = Text.Clean(p.Email);
         p.Phone = Text.Clean(p.Phone);
+        p.Website = Text.Clean(p.Website);
+        p.DefaultInvoiceNotes = Text.Clean(p.DefaultInvoiceNotes);
+        p.PrivateNotes = Text.Clean(p.PrivateNotes);
         p.BankAccountName = Text.Clean(p.BankAccountName);
         p.AccountNumber = Text.Clean(p.AccountNumber);
         p.AccentColour = Text.Clean(p.AccentColour);
