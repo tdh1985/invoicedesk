@@ -87,6 +87,7 @@ public sealed class TransactionService(IDbContextFactory<AppDbContext> factory, 
         }
 
         store.DeleteFiles(removed);
+        store.DiscardStaged(newFiles);
         Changed?.Invoke();
         return entity;
     }

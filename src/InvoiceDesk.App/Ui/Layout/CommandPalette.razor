@@ -1,0 +1,140 @@
+@implements IDisposable
+@inject SearchService Search
+@inject NavigationManager Nav
+@inject ShortcutService Shortcuts
+@inject IJSRuntime JS
+
+@if (_open)
+{
+    <div class="scrim" @onclick="Close"></div>
+    <div class="palette" role="dialog" aria-modal="true" aria-label="Search and go">
+        <div class="palette-input">
+            <Icon Name="search" Size="18" />
+            <input id="palette-query" type="text" placeholder="Search invoices, clients and receipts, or type a command"
+                   autocomplete="off" spellcheck="false"
+                   value="@_query" @oninput="OnInput" @onkeydown="OnKeyDown" />
+            <kbd>Esc</kbd>
+        </div>
+        <ul class="palette-list" role="listbox">
+            @if (_items.Count == 0)
+            {
+                <li class="palette-empty">Nothing matches "@_query". Try a client name or an invoice number.</li>
+            }
+            @for (var i = 0; i < _items.Count; i++)
+            {
+                var index = i;
+                var item = _items[i];
+                if (i == 0 || _items[i - 1].Group != item.Group)
+                {
+                    <li class="palette-group" role="presentation">@item.Group</li>
+                }
+                <li role="option" aria-selected="@(index == _active)" class="palette-item @(index == _active ? "active" : null)"
+                    @onmouseenter="() => _active = index" @onclick="() => Go(item)">
+                    <Icon Name="@item.Icon" Size="16" />
+                    <span class="palette-title">@item.Title</span>
+                    <span class="palette-sub">@item.Subtitle</span>
+                </li>
+            }
+        </ul>
+    </div>
+}
+
+@code {
+    sealed record Item(string Group, string Icon, string Title, string Subtitle, string Href);
+
+    static readonly Item[] Actions =
+    [
+        new("Actions", "plus", "New invoice", "Ctrl N", "invoices/new"),
+        new("Actions", "out", "Add an expense", "Money out with a receipt", "money?new=out"),
+        new("Actions", "in", "Add income", "Money in that isn't an invoice payment", "money?new=in"),
+        new("Actions", "users", "Add a client", "", "clients?new=1"),
+        new("Actions", "invoice", "Invoices", "", "invoices"),
+        new("Actions", "wallet", "Money in and out", "", "money"),
+        new("Actions", "sliders", "Settings", "Business details, GST, numbering", "settings"),
+    ];
+
+    bool _open;
+    string _query = "";
+    int _active;
+    List<Item> _items = [];
+    CancellationTokenSource? _debounce;
+
+    protected override void OnInitialized() => Shortcuts.Pressed += OnShortcut;
+
+    public void Open() => InvokeAsync(async () =>
+    {
+        _open = true;
+        _query = "";
+        _active = 0;
+        _items = Actions.ToList();
+        StateHasChanged();
+        await Task.Yield();
+        await JS.InvokeVoidAsync("invoicedesk.focus", "#palette-query");
+    });
+
+    void Close() => _open = false;
+
+    void OnShortcut(string key)
+    {
+        if (key == "escape" && _open) InvokeAsync(() => { _open = false; StateHasChanged(); });
+    }
+
+    async Task OnInput(ChangeEventArgs e)
+    {
+        _query = e.Value?.ToString() ?? "";
+        _debounce?.Cancel();
+        _debounce = new CancellationTokenSource();
+        var token = _debounce.Token;
+        try { await Task.Delay(120, token); }
+        catch (TaskCanceledException) { return; }
+        await RefreshAsync();
+    }
+
+    async Task RefreshAsync()
+    {
+        var term = _query.Trim();
+        var actions = Actions.Where(a => term.Length == 0 || a.Title.Contains(term, StringComparison.OrdinalIgnoreCase));
+        IEnumerable<Item> found = term.Length == 0 ? [] : (await Search.SearchAsync(term)).Select(ToItem);
+        _items = found.Concat(actions).ToList();
+        _active = 0;
+        StateHasChanged();
+    }
+
+    static Item ToItem(SearchResult r) => r.Kind switch
+    {
+        SearchKind.Client => new("Clients", "users", r.Title, r.Subtitle, $"clients/{r.Id}"),
+        SearchKind.Invoice => new("Invoices", "invoice", r.Title, $"{r.Subtitle}  {Format.Money(r.AmountCents ?? 0)}", $"invoices/{r.Id}"),
+        _ => new("Money", "receipt", r.Title, $"{r.Subtitle}  {Format.Money(r.AmountCents ?? 0)}  {(r.Date is { } d ? Format.Date(d) : "")}", $"money?open={r.Id}"),
+    };
+
+    void OnKeyDown(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "ArrowDown":
+                _active = Math.Min(_items.Count - 1, _active + 1);
+                break;
+            case "ArrowUp":
+                _active = Math.Max(0, _active - 1);
+                break;
+            case "Enter" when _items.Count > 0:
+                Go(_items[_active]);
+                break;
+            case "Escape":
+                _open = false;
+                break;
+        }
+    }
+
+    void Go(Item item)
+    {
+        _open = false;
+        Nav.NavigateTo(item.Href);
+    }
+
+    public void Dispose()
+    {
+        Shortcuts.Pressed -= OnShortcut;
+        _debounce?.Cancel();
+    }
+}

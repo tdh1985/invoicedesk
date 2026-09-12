@@ -1,0 +1,5 @@
+<span class="pill pill-@Status.ToString().ToLowerInvariant()">@Format.Status(Status)</span>
+
+@code {
+    [Parameter, EditorRequired] public DisplayStatus Status { get; set; }
+}

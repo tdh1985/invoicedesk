@@ -1,0 +1,241 @@
+@page "/"
+@implements IDisposable
+@inject DashboardService DashboardStore
+@inject ProfileService Profiles
+@inject ClientService ClientStore
+@inject InvoiceService InvoiceStore
+@inject TransactionService Ledger
+@inject TimeProvider Clock
+
+<div class="page">
+    <PageHeader Title="@Greeting">
+        <Subtitle>@Clock.Today().ToString("dddd d MMMM yyyy", CultureInfo.InvariantCulture)</Subtitle>
+    </PageHeader>
+
+    @if (_data is not null && _profile is not null)
+    {
+        @if (!SetupDone)
+        {
+            <section class="checklist" aria-label="Getting started">
+                <div class="step @(HasBusiness ? "done" : null)">
+                    <span class="step-num">@(HasBusiness ? "✓" : "1")</span>
+                    <h3>Add your business details</h3>
+                    <p class="soft small">Your name and ABN go on every invoice. Tax invoices need both.</p>
+                    @if (!HasBusiness)
+                    {
+                        <a class="btn btn-sm" href="settings">Open settings</a>
+                    }
+                </div>
+                <div class="step @(_clientCount > 0 ? "done" : null)">
+                    <span class="step-num">@(_clientCount > 0 ? "✓" : "2")</span>
+                    <h3>Add a client</h3>
+                    <p class="soft small">Who you bill. You can also add one while writing an invoice.</p>
+                    @if (_clientCount == 0)
+                    {
+                        <a class="btn btn-sm" href="clients?new=1">Add a client</a>
+                    }
+                </div>
+                <div class="step @(_invoiceCount > 0 ? "done" : null)">
+                    <span class="step-num">@(_invoiceCount > 0 ? "✓" : "3")</span>
+                    <h3>Create your first invoice</h3>
+                    <p class="soft small">GST on makes it a tax invoice; off makes it a plain invoice.</p>
+                    @if (_invoiceCount == 0)
+                    {
+                        <a class="btn btn-sm btn-primary" href="invoices/new">New invoice</a>
+                    }
+                </div>
+            </section>
+        }
+
+        <section class="hero">
+            <div>
+                @if (_data.OutstandingCount > 0)
+                {
+                    <p class="hero-lead">Clients owe you</p>
+                    <p class="hero-figure">@Format.Money(_data.OutstandingCents)</p>
+                    <p class="hero-sub">
+                        <span>across @_data.OutstandingCount invoice@(_data.OutstandingCount == 1 ? "" : "s").</span>
+                        @if (_data.OverdueCount > 0)
+                        {
+                            <a class="danger-text" href="invoices"><Icon Name="alert" Size="15" /> @Format.Money(_data.OverdueCents) overdue</a>
+                        }
+                        else
+                        {
+                            <span>Nothing is overdue.</span>
+                        }
+                    </p>
+                }
+                else
+                {
+                    <p class="hero-lead">@(_invoiceCount == 0 ? "Nothing sent yet" : "Nothing waiting on clients")</p>
+                    <p class="hero-figure">@Format.Money(0)</p>
+                    <p class="hero-sub">@(_invoiceCount == 0 ? "Invoices you send and haven't been paid for will add up here." : "Every invoice you've sent has been paid.")</p>
+                }
+            </div>
+            <div class="page-actions">
+                <a class="btn" href="money?new=out"><Icon Name="receipt" Size="16" /> Add expense</a>
+                <a class="btn btn-primary" href="invoices/new"><Icon Name="plus" Size="16" /> New invoice</a>
+            </div>
+        </section>
+
+        <div class="ledger-strip">
+            <div class="ledger-cell">
+                <div class="ledger-label">Received this month</div>
+                <div class="ledger-value">@Format.Money(_data.ReceivedMonthCents)</div>
+                <div class="ledger-note">Including GST</div>
+            </div>
+            <div class="ledger-cell">
+                <div class="ledger-label">Spent this month</div>
+                <div class="ledger-value">@Format.Money(_data.SpentMonthCents)</div>
+                <div class="ledger-note">Including GST</div>
+            </div>
+            <div class="ledger-cell">
+                <div class="ledger-label">Profit, @_data.FyLabel</div>
+                <div class="ledger-value">@Format.Money(_data.ProfitFyCents)</div>
+                <div class="ledger-note">Money in less money out, excluding GST</div>
+            </div>
+            <div class="ledger-cell">
+                <div class="ledger-label">GST for @_data.QuarterLabel</div>
+                <div class="ledger-value">@Format.Money(Math.Abs(_data.GstNetQuarterCents))</div>
+                <div class="ledger-note">
+                    @(_data.GstNetQuarterCents >= 0 ? "To pay" : "Refund due"): collected @Format.Money(_data.GstCollectedQuarterCents), paid @Format.Money(_data.GstPaidQuarterCents)
+                </div>
+            </div>
+        </div>
+
+        <div class="dash-grid">
+            <section>
+                <div class="section-head">
+                    <h2>Money in and out</h2>
+                    <span class="soft">Last 12 months</span>
+                </div>
+                <BarChart Months="_data.Months" />
+            </section>
+
+            <div class="col gap-32">
+                <section>
+                    <div class="section-head">
+                        <h2>Overdue</h2>
+                        @if (_data.Overdue.Count > 0)
+                        {
+                            <a class="small" href="invoices">See all invoices</a>
+                        }
+                    </div>
+                    @if (_data.Overdue.Count == 0)
+                    {
+                        <p class="soft small">No overdue invoices. Anything past its due date shows up here.</p>
+                    }
+                    else
+                    {
+                        <ul class="list-rows">
+                            @foreach (var s in _data.Overdue.Take(5))
+                            {
+                                <li @key="s.Id">
+                                    <a href="invoices/@s.Id">
+                                        <span class="list-main">
+                                            <span class="list-title">@s.ClientName</span>
+                                            <span class="list-sub danger-text">@s.Number, @Format.Due(s.DueDate, Clock.Today())</span>
+                                        </span>
+                                        <span class="num">@Format.Money(s.BalanceCents)</span>
+                                    </a>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </section>
+
+                <section>
+                    <div class="section-head"><h2>Recent activity</h2></div>
+                    @if (_data.Recent.Count == 0)
+                    {
+                        <p class="soft small">Invoices, payments and expenses will be listed here as you add them.</p>
+                    }
+                    else
+                    {
+                        <ul class="list-rows">
+                            @foreach (var item in _data.Recent)
+                            {
+                                <li>
+                                    <a href="@Href(item)">
+                                        <span class="list-icon"><Icon Name="@ActivityIcon(item.Kind)" Size="15" /></span>
+                                        <span class="list-main">
+                                            <span class="list-title">@item.Title</span>
+                                            <span class="list-sub">@item.Detail</span>
+                                        </span>
+                                        <span class="col" style="align-items:flex-end">
+                                            <span class="num">@Format.Money(item.AmountCents)</span>
+                                            <span class="list-sub">@DateOnly.FromDateTime(item.At).ToString("d MMM", CultureInfo.InvariantCulture)</span>
+                                        </span>
+                                    </a>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </section>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    DashboardData? _data;
+    BusinessProfile? _profile;
+    int _clientCount;
+    int _invoiceCount;
+
+    bool HasBusiness => _profile is not null && _profile.Name.Length > 0;
+    bool SetupDone => HasBusiness && _clientCount > 0 && _invoiceCount > 0;
+
+    string Greeting => Clock.GetLocalNow().Hour switch
+    {
+        < 12 => "Good morning",
+        < 17 => "Good afternoon",
+        _ => "Good evening",
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        Profiles.Changed += OnChanged;
+        ClientStore.Changed += OnChanged;
+        InvoiceStore.Changed += OnChanged;
+        Ledger.Changed += OnChanged;
+        await LoadAsync();
+    }
+
+    async Task LoadAsync()
+    {
+        _profile = await Profiles.GetAsync();
+        _data = await DashboardStore.GetAsync();
+        _clientCount = (await ClientStore.ListAsync()).Count;
+        _invoiceCount = (await InvoiceStore.ListAsync()).Count;
+    }
+
+    static string Href(ActivityItem item) => item.Kind switch
+    {
+        ActivityKind.Income or ActivityKind.Expense => $"money?open={item.EntityId}",
+        _ => $"invoices/{item.EntityId}",
+    };
+
+    static string ActivityIcon(ActivityKind kind) => kind switch
+    {
+        ActivityKind.InvoiceCreated => "invoice",
+        ActivityKind.InvoiceSent => "send",
+        ActivityKind.PaymentReceived => "in",
+        ActivityKind.Income => "in",
+        _ => "out",
+    };
+
+    void OnChanged() => InvokeAsync(async () =>
+    {
+        await LoadAsync();
+        StateHasChanged();
+    });
+
+    public void Dispose()
+    {
+        Profiles.Changed -= OnChanged;
+        ClientStore.Changed -= OnChanged;
+        InvoiceStore.Changed -= OnChanged;
+        Ledger.Changed -= OnChanged;
+    }
+}

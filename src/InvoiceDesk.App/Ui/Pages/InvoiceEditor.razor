@@ -1,0 +1,656 @@
+@page "/invoices/new"
+@page "/invoices/new/{ClientId:int}"
+@page "/invoices/{Id:int}/edit"
+@implements IDisposable
+@inject InvoiceService InvoiceStore
+@inject ClientService ClientStore
+@inject ProfileService Profiles
+@inject InvoicePdfExporter Pdf
+@inject ToastService Toasts
+@inject ShortcutService Shortcuts
+@inject NavigationManager Nav
+@inject TimeProvider Clock
+@inject Desktop Desktop
+@inject IJSRuntime JS
+
+@if (_invoice is not null && _profile is not null)
+{
+    var totals = _invoice.Totals();
+    <div class="editor">
+        <div class="editor-form scroll">
+            <div class="editor-inner">
+                <a class="back-link" href="invoices"><Icon Name="chevron-left" Size="16" /> Invoices</a>
+                <div class="editor-head">
+                    <div class="col gap-4">
+                        <div class="row gap-12">
+                            <h1 tabindex="-1">@Title</h1>
+                            @if (_invoice.Id > 0)
+                            {
+                                <StatusPill Status="Status" />
+                            }
+                        </div>
+                        <span class="small muted" aria-live="polite">@SaveState</span>
+                    </div>
+                    <div class="page-actions">
+                        <button type="button" class="btn" disabled="@_busy" @onclick="ExportAsync"><Icon Name="download" Size="16" /> Export PDF</button>
+                        @if (_invoice.Status == InvoiceStatus.Draft)
+                        {
+                            <button type="button" class="btn btn-primary" disabled="@_busy" @onclick="MarkSentAsync"><Icon Name="send" Size="16" /> Mark as sent</button>
+                        }
+                        else if (_invoice.Id > 0)
+                        {
+                            <a class="btn btn-primary" href="invoices/@_invoice.Id">View invoice</a>
+                        }
+                        @if (_invoice.Id > 0)
+                        {
+                            <div class="menu">
+                                <button type="button" class="btn btn-icon" aria-label="More actions" aria-expanded="@_menu" @onclick="() => _menu = !_menu"><Icon Name="more" /></button>
+                                @if (_menu)
+                                {
+                                    <div class="picker-scrim" @onclick="() => _menu = false"></div>
+                                    <div class="menu-list">
+                                        <button type="button" @onclick="Duplicate"><Icon Name="copy" Size="16" /> Duplicate</button>
+                                        @if (_invoice.Status == InvoiceStatus.Draft)
+                                        {
+                                            <hr />
+                                            <button type="button" class="danger" @onclick="DeleteDraft"><Icon Name="trash" Size="16" /> Delete draft</button>
+                                        }
+                                        else if (_invoice.Status == InvoiceStatus.Sent)
+                                        {
+                                            <hr />
+                                            <button type="button" class="danger" @onclick="() => { _menu = false; _confirmVoid = true; }"><Icon Name="ban" Size="16" /> Void invoice</button>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                @if (_invoice.Status == InvoiceStatus.Void)
+                {
+                    <div class="banner mt-8"><Icon Name="ban" Size="16" /><div>This invoice is void, so it can't be changed. Duplicate it to start a fresh one.</div></div>
+                }
+                else if (_invoice.Payments.Count > 0)
+                {
+                    <div class="banner mt-8"><Icon Name="alert" Size="16" /><div>Payments have been recorded against this invoice, so it can't be changed. Void it and duplicate it if it needs fixing.</div></div>
+                }
+                else if (_invoice.Status == InvoiceStatus.Sent)
+                {
+                    <div class="banner mt-8"><Icon Name="send" Size="16" /><div>This invoice has already been sent. Changes save here, but your client won't see them until you export and send a new PDF.</div></div>
+                }
+
+                @if (_issueErrors.Count > 0)
+                {
+                    <div class="banner banner-error mt-16" role="alert">
+                        <Icon Name="alert" Size="16" />
+                        <div>
+                            <strong>Fix these before it goes out:</strong>
+                            <ul>
+                                @foreach (var error in _issueErrors)
+                                {
+                                    <li>@error</li>
+                                }
+                            </ul>
+                            @if (_issueErrors.Any(e => e.Contains("Settings")))
+                            {
+                                <a href="settings#business">Open settings</a>
+                            }
+                        </div>
+                    </div>
+                }
+
+                <fieldset class="editor-section mt-24" disabled="@Locked">
+                    <div class="form-grid">
+                        <div class="field span-2">
+                            <label for="invoice-client">Client</label>
+                            <ClientPicker Id="invoice-client" Clients="_clients" ClientId="_invoice.ClientId" ClientIdChanged="OnClientChanged"
+                                          OnNewClient="OpenNewClient" Invalid="@(_triedIssue && _invoice.ClientId <= 0)" Disabled="Locked" />
+                        </div>
+                        <div class="field">
+                            <label for="invoice-issue">Issue date</label>
+                            <input id="invoice-issue" type="date" class="input" value="@Format.Iso(_invoice.IssueDate)" @onchange="OnIssueChanged" />
+                        </div>
+                        <div class="field">
+                            <label for="invoice-due">Due date</label>
+                            <input id="invoice-due" type="date" class="input" value="@Format.Iso(_invoice.DueDate)" @onchange="OnDueChanged" />
+                            <div class="row gap-4">
+                                @foreach (var days in TermOptions)
+                                {
+                                    <button type="button" class="chip chip-sm @(TermDays == days ? "on" : null)" @onclick="() => SetTerms(days)">@days days</button>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="gst-row">
+                        <label class="switch">
+                            <input type="checkbox" checked="@_invoice.GstEnabled" @onchange="OnGstChanged" />
+                            <span>Charge GST (@Format.Percent(_invoice.GstRateBasisPoints))</span>
+                        </label>
+                        <span class="heading-preview">The heading will read <strong>@totals.Heading</strong></span>
+                    </div>
+                    @if (_invoice.GstEnabled && !_profile.GstRegistered)
+                    {
+                        <div class="banner banner-warn"><Icon Name="alert" Size="16" /><div>Your settings say you're not registered for GST. Only registered businesses can charge it. <a href="settings#gst">Check GST settings</a></div></div>
+                    }
+
+                    <div class="lines @(_invoice.GstEnabled ? null : "no-gst") mt-16">
+                        <div class="lines-head">
+                            <span>Description</span>
+                            <span class="r">Qty</span>
+                            <span class="r">Unit price</span>
+                            @if (_invoice.GstEnabled)
+                            {
+                                <span class="c" title="Tick for items with no GST, like some exports or medical services">GST-free</span>
+                            }
+                            <span class="r">Amount</span>
+                            <span></span>
+                        </div>
+                        @for (var i = 0; i < _invoice.Lines.Count; i++)
+                        {
+                            var index = i;
+                            var line = _invoice.Lines[i];
+                            <div class="line" @key="line">
+                                <textarea id="desc-@index" class="input line-desc" rows="1" placeholder="Description" aria-label="Description"
+                                          value="@line.Description" @oninput="e => SetDescription(line, e)"></textarea>
+                                <input class="input num" inputmode="decimal" aria-label="Quantity" value="@Format.Quantity(line.Quantity)"
+                                       @onchange="e => SetQuantity(line, e)" @onkeydown="e => OnLineKey(e, index)" />
+                                <MoneyInput Id="@($"price-{index}")" Cents="line.UnitPriceCents" CentsChanged="c => SetPrice(line, c)"
+                                            AriaLabel="Unit price" OnKeyDown="e => OnLineKey(e, index)" />
+                                @if (_invoice.GstEnabled)
+                                {
+                                    <label class="check" title="GST-free">
+                                        <input type="checkbox" aria-label="GST-free" checked="@line.GstFree" @onchange="e => SetGstFree(line, e)" />
+                                    </label>
+                                }
+                                <span class="line-amount num">@Format.Amount(MoneyMath.LineAmount(line.Quantity, line.UnitPriceCents))</span>
+                                <button type="button" class="btn btn-ghost btn-icon btn-sm" aria-label="Remove line"
+                                        disabled="@(_invoice.Lines.Count == 1)" @onclick="() => RemoveLine(line)"><Icon Name="x" Size="15" /></button>
+                            </div>
+                        }
+                        <button type="button" class="btn btn-ghost add-line" @onclick="AddLine"><Icon Name="plus" Size="16" /> Add line</button>
+                    </div>
+
+                    <div class="editor-totals">
+                        @if (totals.IsTaxInvoice)
+                        {
+                            <div class="row"><span>Subtotal (ex GST)</span><span class="num">@Format.Money(totals.SubtotalCents)</span></div>
+                            <div class="row"><span>GST</span><span class="num">@Format.Money(totals.GstCents)</span></div>
+                        }
+                        <div class="row total"><span>@(totals.IsTaxInvoice ? "Total inc. GST" : "Total")</span><span class="num">@Format.Money(totals.TotalCents)</span></div>
+                    </div>
+
+                    <div class="field mt-24">
+                        <label for="invoice-notes">Notes for your client</label>
+                        <textarea id="invoice-notes" class="textarea" rows="3" placeholder="Optional. Printed on the invoice."
+                                  value="@_invoice.Notes" @oninput="SetNotes"></textarea>
+                    </div>
+                </fieldset>
+            </div>
+        </div>
+
+        <div class="editor-preview" aria-label="Invoice preview">
+            <div class="doc-stage" @ref="_stage">
+                <div class="doc-frame">
+                    <InvoiceDocument Invoice="_invoice" Profile="_profile" LogoUrl="@LogoUrl" Today="_today" NumberPreview="@NumberPreview" />
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<ClientDrawer Open="_addingClient" Client="_draftClient" OnSaved="OnClientCreatedAsync" OnClose="() => _addingClient = false" />
+
+<Modal Open="_confirmVoid" Title="Void this invoice?" OnClose="() => _confirmVoid = false">
+    <ChildContent>
+        <p>@_invoice?.Number stays in your records marked as void, and it stops counting as money owed. This can't be undone.</p>
+    </ChildContent>
+    <Footer>
+        <button type="button" class="btn btn-ghost" @onclick="() => _confirmVoid = false">Keep it</button>
+        <button type="button" class="btn btn-danger" @onclick="VoidAsync"><Icon Name="ban" Size="16" /> Void invoice</button>
+    </Footer>
+</Modal>
+
+@code {
+    static readonly int[] TermOptions = [7, 14, 30];
+
+    [Parameter] public int Id { get; set; }
+    [Parameter] public int? ClientId { get; set; }
+    [SupplyParameterFromQuery(Name = "duplicate")] public int? DuplicateOf { get; set; }
+
+    Invoice? _invoice;
+    BusinessProfile? _profile;
+    List<Client> _clients = [];
+    ElementReference _stage;
+    DateOnly _today;
+    string? _loadedKey;
+    bool _fitted;
+
+    CancellationTokenSource? _debounce;
+    int _version;
+    bool _dirty;
+    bool _saving;
+    bool _saveQueued;
+    DateTime? _savedAt;
+    IReadOnlyList<string>? _saveErrors;
+
+    List<string> _issueErrors = [];
+    bool _triedIssue;
+    bool _busy;
+    bool _menu;
+    bool _confirmVoid;
+    bool _addingClient;
+    bool _leaving;
+    Client? _draftClient;
+    int? _focusLine;
+
+    bool Locked => _invoice is null || _invoice.Status == InvoiceStatus.Void || _invoice.Payments.Count > 0;
+
+    DisplayStatus Status => _invoice is null ? DisplayStatus.Draft : InvoiceStatusResolver.Resolve(_invoice, _today);
+
+    string Title => _invoice switch
+    {
+        { Id: > 0 } inv => inv.Number,
+        _ when DuplicateOf is not null => "Copy of invoice",
+        _ => "New invoice",
+    };
+
+    string NumberPreview => _profile is null ? "" : InvoiceNumbering.Format(_profile.InvoicePrefix, _profile.NextInvoiceNumber, _profile.NumberPadding);
+
+    string? LogoUrl => _profile?.LogoAttachment is { } logo ? FilesUrl.For(logo.StoredPath) : null;
+
+    int TermDays => _invoice is null ? 0 : _invoice.DueDate.DayNumber - _invoice.IssueDate.DayNumber;
+
+    string SaveState
+    {
+        get
+        {
+            if (_invoice is null) return "";
+            if (_saveErrors is { Count: > 0 }) return string.Join(" ", _saveErrors);
+            if (_saving) return "Saving…";
+            if (_invoice.Id == 0) return _invoice.ClientId > 0 ? "Not saved yet" : "Choose a client and it saves as you go";
+            if (_dirty) return "Unsaved changes";
+            return Locked ? "Read only" : "All changes saved";
+        }
+    }
+
+    protected override void OnInitialized() => Shortcuts.Pressed += OnShortcut;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // our own url swap after the first save must not reload the form
+        if (_invoice is { Id: > 0 } current && current.Id == Id) return;
+        var key = $"{Id}|{ClientId}|{DuplicateOf}";
+        if (key == _loadedKey) return;
+        _loadedKey = key;
+        await LoadAsync();
+    }
+
+    async Task LoadAsync()
+    {
+        _today = Clock.Today();
+        _profile = await Profiles.GetAsync();
+        _clients = (await ClientStore.ListAsync(includeArchived: true)).Select(s => s.Client).ToList();
+        _issueErrors = [];
+        _triedIssue = false;
+        _dirty = false;
+        _fitted = false;
+
+        if (Id > 0)
+        {
+            _invoice = await InvoiceStore.GetAsync(Id);
+            if (_invoice is null)
+            {
+                Toasts.Show("That invoice no longer exists.", ToastKind.Error);
+                Nav.NavigateTo("invoices");
+                return;
+            }
+        }
+        else if (DuplicateOf is { } sourceId)
+        {
+            _invoice = await InvoiceStore.DuplicateAsync(sourceId);
+        }
+        else
+        {
+            _invoice = await InvoiceStore.NewDraftAsync(ClientId);
+        }
+        _invoice.Client = _clients.FirstOrDefault(c => c.Id == _invoice.ClientId);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_invoice is not null && !_fitted)
+        {
+            _fitted = true;
+            await JS.InvokeVoidAsync("invoicedesk.fitPreview", _stage);
+        }
+        if (_focusLine is { } line)
+        {
+            _focusLine = null;
+            await JS.InvokeVoidAsync("invoicedesk.focus", $"#desc-{line}");
+        }
+    }
+
+    // editing
+
+    void Changed()
+    {
+        if (Locked || _leaving) return;
+        _version++;
+        _dirty = true;
+        _saveErrors = null;
+        if (_issueErrors.Count > 0) _issueErrors = [];
+        _debounce?.Cancel();
+        _debounce = new CancellationTokenSource();
+        _ = SaveSoonAsync(_debounce.Token);
+    }
+
+    async Task SaveSoonAsync(CancellationToken token)
+    {
+        try { await Task.Delay(800, token); }
+        catch (TaskCanceledException) { return; }
+        await SaveNowAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    void OnClientChanged(int clientId)
+    {
+        _invoice!.ClientId = clientId;
+        _invoice.Client = _clients.FirstOrDefault(c => c.Id == clientId);
+        Changed();
+    }
+
+    void OpenNewClient(string name)
+    {
+        _draftClient = new Client { Name = name };
+        _addingClient = true;
+    }
+
+    async Task OnClientCreatedAsync(Client client)
+    {
+        _addingClient = false;
+        _clients = (await ClientStore.ListAsync(includeArchived: true)).Select(s => s.Client).ToList();
+        OnClientChanged(client.Id);
+    }
+
+    void OnIssueChanged(ChangeEventArgs e)
+    {
+        if (Format.ParseIso(e.Value?.ToString()) is not { } issue) return;
+        var terms = TermDays;
+        _invoice!.IssueDate = issue;
+        _invoice.DueDate = issue.AddDays(Math.Max(0, terms));
+        Changed();
+    }
+
+    void OnDueChanged(ChangeEventArgs e)
+    {
+        if (Format.ParseIso(e.Value?.ToString()) is not { } due) return;
+        _invoice!.DueDate = due < _invoice.IssueDate ? _invoice.IssueDate : due;
+        Changed();
+    }
+
+    void SetTerms(int days)
+    {
+        _invoice!.DueDate = _invoice.IssueDate.AddDays(days);
+        Changed();
+    }
+
+    void OnGstChanged(ChangeEventArgs e)
+    {
+        _invoice!.GstEnabled = e.Value is true;
+        Changed();
+    }
+
+    void SetDescription(InvoiceLine line, ChangeEventArgs e)
+    {
+        line.Description = e.Value?.ToString() ?? "";
+        Changed();
+    }
+
+    void SetQuantity(InvoiceLine line, ChangeEventArgs e)
+    {
+        if (Format.ParseQuantity(e.Value?.ToString()) is { } q && q >= 0) line.Quantity = q;
+        Changed();
+    }
+
+    void SetPrice(InvoiceLine line, long cents)
+    {
+        line.UnitPriceCents = cents;
+        Changed();
+    }
+
+    void SetGstFree(InvoiceLine line, ChangeEventArgs e)
+    {
+        line.GstFree = e.Value is true;
+        Changed();
+    }
+
+    void SetNotes(ChangeEventArgs e)
+    {
+        _invoice!.Notes = e.Value?.ToString() ?? "";
+        Changed();
+    }
+
+    void AddLine()
+    {
+        _invoice!.Lines.Add(new InvoiceLine { Quantity = 1 });
+        _focusLine = _invoice.Lines.Count - 1;
+        Changed();
+    }
+
+    void RemoveLine(InvoiceLine line)
+    {
+        if (_invoice!.Lines.Count <= 1) return;
+        _invoice.Lines.Remove(line);
+        Changed();
+    }
+
+    void OnLineKey(KeyboardEventArgs e, int index)
+    {
+        if (e.Key != "Enter") return;
+        if (index == _invoice!.Lines.Count - 1) AddLine();
+        else _focusLine = index + 1;
+    }
+
+    // saving
+
+    Invoice Snapshot() => new()
+    {
+        Id = _invoice!.Id,
+        ClientId = _invoice.ClientId,
+        IssueDate = _invoice.IssueDate,
+        DueDate = _invoice.DueDate,
+        GstEnabled = _invoice.GstEnabled,
+        GstRateBasisPoints = _invoice.GstRateBasisPoints,
+        Notes = _invoice.Notes,
+        Lines = _invoice.Lines.Select(l => l.Copy()).ToList(),
+    };
+
+    async Task<bool> SaveNowAsync()
+    {
+        if (_invoice is null || Locked || _invoice.ClientId <= 0) return false;
+        if (_saving)
+        {
+            _saveQueued = true;
+            return false;
+        }
+
+        _saving = true;
+        var version = _version;
+        try
+        {
+            var saved = await InvoiceStore.SaveAsync(Snapshot());
+            var first = _invoice.Id == 0;
+            _invoice.Id = saved.Id;
+            _invoice.Number = saved.Number;
+            _invoice.Status = saved.Status;
+            _invoice.CreatedAt = saved.CreatedAt;
+            _dirty = version != _version;
+            _savedAt = Clock.Now();
+            if (first && !_leaving) Nav.NavigateTo($"invoices/{saved.Id}/edit", replace: true);
+            return true;
+        }
+        catch (ValidationException ex)
+        {
+            _saveErrors = ex.Errors;
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error(ex);
+            return false;
+        }
+        finally
+        {
+            _saving = false;
+            if (_saveQueued)
+            {
+                _saveQueued = false;
+                _ = SaveNowAsync();
+            }
+        }
+    }
+
+    async Task FlushAsync()
+    {
+        _debounce?.Cancel();
+        while (_saving) await Task.Delay(40);
+        if (_dirty || _invoice?.Id == 0) await SaveNowAsync();
+    }
+
+    // blank rows are fine while typing but shouldn't block sending
+    async Task<bool> PrepareForIssueAsync()
+    {
+        if (_invoice is null) return false;
+        _triedIssue = true;
+        var blanks = _invoice.Lines.Where(l => string.IsNullOrWhiteSpace(l.Description) && l.UnitPriceCents == 0).ToList();
+        if (blanks.Count > 0 && blanks.Count < _invoice.Lines.Count)
+        {
+            foreach (var blank in blanks) _invoice.Lines.Remove(blank);
+            Changed();
+        }
+
+        if (_invoice.ClientId <= 0)
+        {
+            _issueErrors = ["Choose a client."];
+            return false;
+        }
+
+        await FlushAsync();
+        if (_invoice.Id == 0) return false;
+        _profile = await Profiles.GetAsync();
+        _issueErrors = InvoiceStore.ValidateForIssue(_invoice, _profile).ToList();
+        return _issueErrors.Count == 0;
+    }
+
+    async Task ExportAsync()
+    {
+        if (!await PrepareForIssueAsync()) return;
+        _busy = true;
+        try
+        {
+            var path = await Pdf.ExportAsync(_invoice!.Id);
+            var actions = new List<ToastAction>
+            {
+                new("Open", () => { Desktop.OpenFile(path); return Task.CompletedTask; }),
+                new("Show in folder", () => { Desktop.ShowInFolder(path); return Task.CompletedTask; }),
+            };
+            if (_invoice.Status == InvoiceStatus.Draft) actions.Add(new ToastAction("Mark as sent", MarkSentAsync));
+            Toasts.Show($"Saved {System.IO.Path.GetFileName(path)}", ToastKind.Success, actions.ToArray());
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error(ex);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    async Task MarkSentAsync()
+    {
+        if (!await PrepareForIssueAsync()) return;
+        _busy = true;
+        try
+        {
+            var id = _invoice!.Id;
+            var path = await Pdf.ExportAsync(id);
+            await InvoiceStore.MarkSentAsync(id, path);
+            Toasts.Show($"{_invoice.Number} marked as sent. The PDF is ready to email.", ToastKind.Success,
+                new ToastAction("Open PDF", () => { Desktop.OpenFile(path); return Task.CompletedTask; }),
+                new ToastAction("Show in folder", () => { Desktop.ShowInFolder(path); return Task.CompletedTask; }));
+            _leaving = true;
+            Nav.NavigateTo($"invoices/{id}");
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error(ex);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    async void Duplicate()
+    {
+        _menu = false;
+        await FlushAsync();
+        Nav.NavigateTo($"invoices/new?duplicate={_invoice!.Id}");
+    }
+
+    void DeleteDraft()
+    {
+        _menu = false;
+        var id = _invoice!.Id;
+        var number = _invoice.Number;
+        _leaving = true;
+        _debounce?.Cancel();
+        Toasts.ShowUndo($"{number} deleted", $"invoice:{id}", () => InvoiceStore.DeleteDraftAsync(id));
+        Nav.NavigateTo("invoices");
+    }
+
+    async Task VoidAsync()
+    {
+        _confirmVoid = false;
+        try
+        {
+            await InvoiceStore.VoidAsync(_invoice!.Id);
+            Toasts.Show($"{_invoice.Number} voided");
+            _leaving = true;
+            Nav.NavigateTo($"invoices/{_invoice.Id}");
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error(ex);
+        }
+    }
+
+    void OnShortcut(string key)
+    {
+        if (key != "s") return;
+        InvokeAsync(async () =>
+        {
+            await FlushAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        Shortcuts.Pressed -= OnShortcut;
+        _debounce?.Cancel();
+        // leaving mid-edit still keeps the latest typing
+        if (_dirty && !_leaving && !Locked && _invoice is { ClientId: > 0 })
+        {
+            var snapshot = Snapshot();
+            _ = Task.Run(async () =>
+            {
+                try { await InvoiceStore.SaveAsync(snapshot); }
+                catch (Exception ex) { FileLog.Write(ex, "save on leave"); }
+            });
+        }
+    }
+}

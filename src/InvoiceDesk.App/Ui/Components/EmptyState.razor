@@ -1,0 +1,17 @@
+<div class="empty @(Compact ? "compact" : null)">
+    <span class="empty-art"><Icon Name="@IconName" Size="26" /></span>
+    <h2>@Title</h2>
+    @if (Text is not null)
+    {
+        <p>@Text</p>
+    }
+    @ChildContent
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter] public string? Text { get; set; }
+    [Parameter] public string IconName { get; set; } = "invoice";
+    [Parameter] public bool Compact { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

@@ -1,0 +1,138 @@
+@page "/clients"
+@implements IDisposable
+@inject ClientService ClientStore
+@inject ToastService Toasts
+@inject NavigationManager Nav
+
+<div class="page">
+    <PageHeader Title="Clients">
+        <Subtitle>@Summary</Subtitle>
+        <Actions>
+            <button type="button" class="btn btn-primary" @onclick="() => _adding = true"><Icon Name="plus" Size="16" /> Add client</button>
+        </Actions>
+    </PageHeader>
+
+    @if (_all is null)
+    {
+    }
+    else if (_all.Count == 0 && !_showArchived)
+    {
+        <EmptyState Title="No clients yet" IconName="users"
+                    Text="Add the people and businesses you invoice. You can also add one while writing an invoice.">
+            <button type="button" class="btn btn-primary" @onclick="() => _adding = true"><Icon Name="plus" Size="16" /> Add client</button>
+        </EmptyState>
+    }
+    else
+    {
+        <div class="toolbar">
+            <div class="search">
+                <Icon Name="search" Size="16" />
+                <input class="input" type="search" placeholder="Search by name, contact or email" aria-label="Search clients"
+                       @bind="_search" @bind:event="oninput" />
+            </div>
+            <label class="check small soft"><input type="checkbox" @bind="_showArchived" @bind:after="LoadAsync" /> Show archived</label>
+        </div>
+
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Client</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th class="num">Invoices</th>
+                    <th class="num">Billed</th>
+                    <th class="num">Outstanding</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Rows)
+                {
+                    var c = row.Client;
+                    <tr class="link @(c.IsArchived ? "strike" : null)" tabindex="0"
+                        @onclick="() => Open(c.Id)" @onkeydown="e => OnRowKey(e, c.Id)">
+                        <td>
+                            <span class="primary">@c.Name</span>
+                            @if (c.ContactName.Length > 0 || c.IsArchived)
+                            {
+                                <span class="secondary">@(c.IsArchived ? "Archived" : c.ContactName)</span>
+                            }
+                        </td>
+                        <td class="truncate" style="max-width:240px">@c.Email</td>
+                        <td class="nowrap">@c.Phone</td>
+                        <td class="num">@row.InvoiceCount</td>
+                        <td class="num">@Format.Money(row.BilledCents)</td>
+                        <td class="num">@(row.OutstandingCents > 0 ? Format.Money(row.OutstandingCents) : "–")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        @if (!Rows.Any())
+        {
+            <EmptyState Compact Title="No matches" IconName="search" Text="@($"No clients match \"{_search}\".")" />
+        }
+    }
+</div>
+
+<ClientDrawer Open="_adding" OnSaved="OnSavedAsync" OnClose="() => _adding = false" />
+
+@code {
+    [SupplyParameterFromQuery(Name = "new")] public int? NewFlag { get; set; }
+
+    List<ClientSummary>? _all;
+    string _search = "";
+    bool _showArchived;
+    bool _adding;
+
+    IEnumerable<ClientSummary> Rows => _search.Trim().Length == 0
+        ? _all ?? []
+        : (_all ?? []).Where(r => Contains(r.Client.Name) || Contains(r.Client.ContactName) || Contains(r.Client.Email));
+
+    string Summary => _all is null ? "" : _all.Count switch
+    {
+        0 => "The people and businesses you invoice.",
+        1 => "1 client",
+        var n => $"{n} clients",
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _adding = NewFlag == 1;
+        ClientStore.Changed += OnStoreChanged;
+        Toasts.Changed += OnToastsChanged;
+        await LoadAsync();
+    }
+
+    async Task LoadAsync() =>
+        _all = (await ClientStore.ListAsync(includeArchived: _showArchived))
+            .Where(r => !Toasts.IsPending($"client:{r.Client.Id}"))
+            .ToList();
+
+    void OnStoreChanged() => InvokeAsync(async () =>
+    {
+        await LoadAsync();
+        StateHasChanged();
+    });
+
+    void OnToastsChanged() => OnStoreChanged();
+
+    public void Dispose()
+    {
+        ClientStore.Changed -= OnStoreChanged;
+        Toasts.Changed -= OnToastsChanged;
+    }
+
+    bool Contains(string value) => value.Contains(_search.Trim(), StringComparison.OrdinalIgnoreCase);
+
+    void Open(int id) => Nav.NavigateTo($"clients/{id}");
+
+    void OnRowKey(KeyboardEventArgs e, int id)
+    {
+        if (e.Key == "Enter") Open(id);
+    }
+
+    async Task OnSavedAsync(Client client)
+    {
+        _adding = false;
+        await LoadAsync();
+    }
+}

@@ -1,0 +1,167 @@
+@page "/invoices"
+@implements IDisposable
+@inject InvoiceService InvoiceStore
+@inject ToastService Toasts
+@inject NavigationManager Nav
+@inject TimeProvider Clock
+
+<div class="page">
+    <PageHeader Title="Invoices">
+        <Subtitle>@Summary</Subtitle>
+        <Actions>
+            <a class="btn btn-primary" href="invoices/new"><Icon Name="plus" Size="16" /> New invoice</a>
+        </Actions>
+    </PageHeader>
+
+    @if (_all is null)
+    {
+    }
+    else if (_all.Count == 0)
+    {
+        <EmptyState Title="No invoices yet" IconName="invoice"
+                    Text="Create your first invoice. Charging GST makes it a tax invoice; leaving it off makes it a plain invoice.">
+            <a class="btn btn-primary" href="invoices/new"><Icon Name="plus" Size="16" /> New invoice</a>
+        </EmptyState>
+    }
+    else
+    {
+        <div class="toolbar">
+            <div class="chips" role="group" aria-label="Show">
+                @foreach (var (filter, label) in Filters)
+                {
+                    <button type="button" class="chip @(_filter == filter ? "on" : null)" aria-pressed="@(_filter == filter)"
+                            @onclick="() => _filter = filter">
+                        @label <span class="chip-count">@_all.Count(s => s.Matches(filter))</span>
+                    </button>
+                }
+            </div>
+            <div class="grow"></div>
+            <div class="search">
+                <Icon Name="search" Size="16" />
+                <input class="input" type="search" placeholder="Number or client" aria-label="Search invoices"
+                       @bind="_search" @bind:event="oninput" />
+            </div>
+        </div>
+
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Invoice</th>
+                    <th>Client</th>
+                    <th>Issued</th>
+                    <th>Due</th>
+                    <th class="num">Total</th>
+                    <th class="num">Balance</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var s in Rows)
+                {
+                    <tr class="link @(s.Status == DisplayStatus.Void ? "strike" : null)" tabindex="0" @key="s.Id"
+                        @onclick="() => Open(s)" @onkeydown="e => OnRowKey(e, s)">
+                        <td>
+                            <span class="primary num">@s.Number</span>
+                            <span class="secondary">@(s.IsTaxInvoice ? "Tax invoice" : "Invoice")</span>
+                        </td>
+                        <td class="truncate" style="max-width:260px">@s.ClientName</td>
+                        <td class="nowrap">@Format.Date(s.IssueDate)</td>
+                        <td class="nowrap">
+                            @Format.Date(s.DueDate)
+                            @if (s.IsAwaitingPayment)
+                            {
+                                <span class="secondary @(s.Status == DisplayStatus.Overdue ? "danger-text" : null)">@Format.Due(s.DueDate, _today)</span>
+                            }
+                        </td>
+                        <td class="num">@Format.Money(s.TotalCents)</td>
+                        <td class="num">@(s.IsAwaitingPayment ? Format.Money(s.BalanceCents) : "–")</td>
+                        <td><StatusPill Status="s.Status" /></td>
+                    </tr>
+                }
+            </tbody>
+            @if (_filter is InvoiceFilter.Sent or InvoiceFilter.Overdue && Rows.Any())
+            {
+                <tfoot>
+                    <tr>
+                        <td colspan="5" class="soft">@(_filter == InvoiceFilter.Overdue ? "Overdue" : "Waiting on")</td>
+                        <td class="num">@Format.Money(Rows.Sum(s => s.BalanceCents))</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            }
+        </table>
+        @if (!Rows.Any())
+        {
+            <EmptyState Compact Title="Nothing here" IconName="search" Text="No invoices match this filter." />
+        }
+    }
+</div>
+
+@code {
+    static readonly (InvoiceFilter Filter, string Label)[] Filters =
+    [
+        (InvoiceFilter.All, "All"),
+        (InvoiceFilter.Draft, "Drafts"),
+        (InvoiceFilter.Sent, "Unpaid"),
+        (InvoiceFilter.Overdue, "Overdue"),
+        (InvoiceFilter.Paid, "Paid"),
+        (InvoiceFilter.Void, "Void"),
+    ];
+
+    List<InvoiceSummary>? _all;
+    InvoiceFilter _filter = InvoiceFilter.All;
+    string _search = "";
+    DateOnly _today;
+
+    IEnumerable<InvoiceSummary> Rows => (_all ?? [])
+        .Where(s => s.Matches(_filter))
+        .Where(s => _search.Trim().Length == 0
+                    || s.Number.Contains(_search.Trim(), StringComparison.OrdinalIgnoreCase)
+                    || s.ClientName.Contains(_search.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    string Summary
+    {
+        get
+        {
+            if (_all is null || _all.Count == 0) return "Bills you've sent to clients, and what they still owe.";
+            var open = _all.Where(s => s.IsAwaitingPayment).ToList();
+            return open.Count == 0
+                ? "Everything you've sent has been paid."
+                : $"{Format.Money(open.Sum(s => s.BalanceCents))} still to come in, across {open.Count} invoice{(open.Count == 1 ? "" : "s")}.";
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        InvoiceStore.Changed += OnChanged;
+        Toasts.Changed += OnChanged;
+        await LoadAsync();
+    }
+
+    async Task LoadAsync()
+    {
+        _today = Clock.Today();
+        _all = (await InvoiceStore.ListAsync())
+            .Where(s => !Toasts.IsPending($"invoice:{s.Id}"))
+            .ToList();
+    }
+
+    void Open(InvoiceSummary s) => Nav.NavigateTo(s.Status == DisplayStatus.Draft ? $"invoices/{s.Id}/edit" : $"invoices/{s.Id}");
+
+    void OnRowKey(KeyboardEventArgs e, InvoiceSummary s)
+    {
+        if (e.Key == "Enter") Open(s);
+    }
+
+    void OnChanged() => InvokeAsync(async () =>
+    {
+        await LoadAsync();
+        StateHasChanged();
+    });
+
+    public void Dispose()
+    {
+        InvoiceStore.Changed -= OnChanged;
+        Toasts.Changed -= OnChanged;
+    }
+}

@@ -1,0 +1,40 @@
+@implements IDisposable
+@inject ShortcutService Shortcuts
+
+@if (Open)
+{
+    <div class="scrim" @onclick="CloseAsync"></div>
+    <div class="modal @Class" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <header class="modal-head">
+            <h2 id="modal-title" class="truncate">@Title</h2>
+            @HeadExtra
+            <button type="button" class="btn btn-ghost btn-icon" aria-label="Close" @onclick="CloseAsync"><Icon Name="x" /></button>
+        </header>
+        <div class="modal-body">@ChildContent</div>
+        @if (Footer is not null)
+        {
+            <footer class="modal-foot">@Footer</footer>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment? Footer { get; set; }
+    [Parameter] public RenderFragment? HeadExtra { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    protected override void OnInitialized() => Shortcuts.Pressed += OnKey;
+
+    void OnKey(string key)
+    {
+        if (key == "escape" && Open) InvokeAsync(CloseAsync);
+    }
+
+    Task CloseAsync() => OnClose.InvokeAsync();
+
+    public void Dispose() => Shortcuts.Pressed -= OnKey;
+}

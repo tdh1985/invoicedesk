@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>InvoiceDesk</title>
+    <base href="/" />
+    <link rel="stylesheet" href="css/app.css" />
+    <link rel="stylesheet" href="css/invoice.css" />
+    <script>
+        // paint the right theme before blazor starts so there is no white flash
+        (function () {
+            try {
+                var t = localStorage.getItem('invoicedesk-theme') || 'system';
+                var dark = t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+                document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+            } catch (e) { }
+        })();
+    </script>
+</head>
+<body>
+    <div id="app"></div>
+    <div id="blazor-error-ui">Something went wrong. <a href="" class="reload">Reload</a></div>
+    <script src="_framework/blazor.webview.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

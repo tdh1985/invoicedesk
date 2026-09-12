@@ -91,6 +91,12 @@ public sealed class AttachmentStore(AppPaths paths, TimeProvider clock)
         }
     }
 
+    // staged copies are only needed until the real copy is saved
+    public void DiscardStaged(IEnumerable<StagedFile> files)
+    {
+        foreach (var f in files) TryDelete(f.TempPath);
+    }
+
     public string FullPath(Attachment attachment) => paths.FullPath(attachment.StoredPath);
 
     public void DeleteFile(Attachment attachment) => TryDelete(FullPath(attachment));

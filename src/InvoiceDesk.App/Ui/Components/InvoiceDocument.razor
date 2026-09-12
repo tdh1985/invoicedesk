@@ -1,0 +1,185 @@
+@* no injected services: this also renders outside the app through HtmlRenderer for pdfs *@
+@{
+    var totals = Invoice.Totals();
+    var paid = Invoice.PaidCents;
+    var balance = Math.Max(0, totals.TotalCents - paid);
+    var status = InvoiceStatusResolver.Resolve(Invoice.Status, totals.TotalCents, paid, Invoice.DueDate, Today);
+    var client = Invoice.Client;
+    var lines = Invoice.Lines.Where(l => !string.IsNullOrWhiteSpace(l.Description) || l.UnitPriceCents != 0).ToList();
+    var hasGstFree = totals.IsTaxInvoice && lines.Any(l => l.GstFree);
+    var hasBank = Profile.AccountNumber.Length > 0 || Profile.Bsb.Length > 0;
+}
+<article class="doc" style="--doc-accent: @Profile.AccentColour">
+    <header class="doc-head">
+        <div class="doc-from">
+            @if (LogoUrl is not null)
+            {
+                <img class="doc-logo" src="@LogoUrl" alt="" />
+            }
+            <div class="doc-from-text">
+                <div class="doc-biz">@(Profile.Name.Length > 0 ? Profile.Name : "Your business name")</div>
+                @if (Abn.IsValid(Profile.Abn))
+                {
+                    <div class="doc-small">ABN @Abn.Format(Profile.Abn)</div>
+                }
+                @if (Profile.Address.Length > 0)
+                {
+                    <div class="doc-small doc-pre">@Profile.Address</div>
+                }
+                @if (Profile.Email.Length > 0)
+                {
+                    <div class="doc-small">@Profile.Email</div>
+                }
+                @if (Profile.Phone.Length > 0)
+                {
+                    <div class="doc-small">@Profile.Phone</div>
+                }
+            </div>
+        </div>
+        <div class="doc-title">
+            <h1>@totals.Heading</h1>
+            <div class="doc-number">@(Invoice.Number.Length > 0 ? Invoice.Number : NumberPreview)</div>
+        </div>
+    </header>
+
+    <section class="doc-parties">
+        <div>
+            <div class="doc-label">Bill to</div>
+            @if (client is not null)
+            {
+                <div class="doc-client">@client.Name</div>
+                @if (client.ContactName.Length > 0)
+                {
+                    <div class="doc-small">Attention: @client.ContactName</div>
+                }
+                @if (client.Address.Length > 0)
+                {
+                    <div class="doc-small doc-pre">@client.Address</div>
+                }
+                @if (Abn.IsValid(client.Abn))
+                {
+                    <div class="doc-small">ABN @Abn.Format(client.Abn)</div>
+                }
+            }
+            else
+            {
+                <div class="doc-client doc-placeholder">Choose a client</div>
+            }
+        </div>
+        <dl class="doc-dates">
+            <dt>Issued</dt>
+            <dd>@Format.DateLong(Invoice.IssueDate)</dd>
+            <dt>Due</dt>
+            <dd>@Format.DateLong(Invoice.DueDate)</dd>
+            <dt class="doc-due">Amount due</dt>
+            <dd class="doc-due">@Format.Money(balance)</dd>
+        </dl>
+    </section>
+
+    <table class="doc-lines">
+        <thead>
+            <tr>
+                <th>Description</th>
+                <th class="n">Qty</th>
+                <th class="n">Unit price</th>
+                <th class="n">Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var line in lines)
+            {
+                <tr>
+                    <td class="doc-desc">
+                        <span class="doc-pre">@line.Description</span>
+                        @if (totals.IsTaxInvoice && line.GstFree)
+                        {
+                            <span class="doc-tag">GST-free</span>
+                        }
+                    </td>
+                    <td class="n">@Format.Quantity(line.Quantity)</td>
+                    <td class="n">@Format.Amount(line.UnitPriceCents)</td>
+                    <td class="n">@Format.Amount(MoneyMath.LineAmount(line.Quantity, line.UnitPriceCents))</td>
+                </tr>
+            }
+            @if (lines.Count == 0)
+            {
+                <tr><td colspan="4" class="doc-placeholder">Line items appear here</td></tr>
+            }
+        </tbody>
+    </table>
+
+    <div class="doc-summary">
+        <div class="doc-summary-notes">
+            @if (!totals.IsTaxInvoice)
+            {
+                <p class="doc-small">No GST has been charged.</p>
+            }
+            @if (hasGstFree)
+            {
+                <p class="doc-small">Items marked GST-free have no GST included.</p>
+            }
+        </div>
+        <div class="doc-totals">
+            @if (status is DisplayStatus.Paid or DisplayStatus.Void)
+            {
+                <div class="doc-stamp @(status == DisplayStatus.Void ? "void" : null) @(AnimateStamp ? "animate" : null)" aria-hidden="true">
+                    @(status == DisplayStatus.Void ? "VOID" : "PAID")
+                    @if (status == DisplayStatus.Paid && Invoice.Payments.Count > 0)
+                    {
+                        <small>@Format.DateLong(Invoice.Payments.Max(p => p.Date))</small>
+                    }
+                </div>
+            }
+            @if (totals.IsTaxInvoice)
+            {
+                <div class="doc-row"><span>Subtotal (ex GST)</span><span class="n">@Format.Amount(totals.SubtotalCents)</span></div>
+                <div class="doc-row"><span>GST @Format.Percent(Invoice.GstRateBasisPoints)</span><span class="n">@Format.Amount(totals.GstCents)</span></div>
+            }
+            <div class="doc-row doc-total"><span>@(totals.IsTaxInvoice ? "Total inc. GST" : "Total")</span><span class="n">@Format.Money(totals.TotalCents)</span></div>
+            @if (paid > 0)
+            {
+                <div class="doc-row"><span>Paid</span><span class="n">&minus;@Format.Amount(paid)</span></div>
+                <div class="doc-row doc-balance"><span>Balance due</span><span class="n">@Format.Money(balance)</span></div>
+            }
+        </div>
+    </div>
+
+    @if (Invoice.Notes.Length > 0)
+    {
+        <section class="doc-notes">
+            <div class="doc-label">Notes</div>
+            <p class="doc-pre">@Invoice.Notes</p>
+        </section>
+    }
+
+    <div class="doc-spacer"></div>
+
+    @if (hasBank && status != DisplayStatus.Void)
+    {
+        <section class="doc-remit">
+            <div class="doc-remit-title">How to pay</div>
+            <dl class="doc-remit-grid">
+                @if (Profile.BankAccountName.Length > 0)
+                {
+                    <div><dt>Account name</dt><dd>@Profile.BankAccountName</dd></div>
+                }
+                <div><dt>BSB</dt><dd class="n">@Profile.Bsb</dd></div>
+                <div><dt>Account number</dt><dd class="n">@Profile.AccountNumber</dd></div>
+                <div><dt>Reference</dt><dd class="n">@(Invoice.Number.Length > 0 ? Invoice.Number : NumberPreview)</dd></div>
+            </dl>
+        </section>
+    }
+
+    <footer class="doc-foot">
+        <span>@Profile.FooterNote</span>
+    </footer>
+</article>
+
+@code {
+    [Parameter, EditorRequired] public Invoice Invoice { get; set; } = default!;
+    [Parameter, EditorRequired] public BusinessProfile Profile { get; set; } = default!;
+    [Parameter] public string? LogoUrl { get; set; }
+    [Parameter] public DateOnly Today { get; set; } = DateOnly.FromDateTime(DateTime.Today);
+    [Parameter] public string NumberPreview { get; set; } = "";
+    [Parameter] public bool AnimateStamp { get; set; }
+}

@@ -1,0 +1,92 @@
+@inject ClientService Clients
+@inject ToastService Toasts
+
+<Drawer Open="Open" Title="@(IsNew ? "New client" : "Edit client")" OnClose="OnClose">
+    <ChildContent>
+        <form id="client-form" class="col gap-16" @onsubmit="SaveAsync">
+            @if (_errors is { Count: > 0 })
+            {
+                <div class="banner banner-error"><Icon Name="alert" Size="16" /><div>@string.Join(" ", _errors)</div></div>
+            }
+            <div class="field">
+                <label for="client-name">Business or person's name</label>
+                <input id="client-name" class="input" @bind="_client.Name" placeholder="Acme Pty Ltd" />
+            </div>
+            <div class="form-grid">
+                <div class="field">
+                    <label for="client-contact">Contact person</label>
+                    <input id="client-contact" class="input" @bind="_client.ContactName" />
+                </div>
+                <div class="field">
+                    <label for="client-abn">ABN</label>
+                    <input id="client-abn" class="input num" style="text-align:left" @bind="_client.Abn" placeholder="Optional" />
+                </div>
+                <div class="field">
+                    <label for="client-email">Email</label>
+                    <input id="client-email" type="email" class="input" @bind="_client.Email" />
+                </div>
+                <div class="field">
+                    <label for="client-phone">Phone</label>
+                    <input id="client-phone" type="tel" class="input" @bind="_client.Phone" />
+                </div>
+                <div class="field span-2">
+                    <label for="client-address">Address</label>
+                    <textarea id="client-address" class="textarea" rows="3" @bind="_client.Address"></textarea>
+                    <span class="hint">Printed under "Bill to" on invoices.</span>
+                </div>
+                <div class="field span-2">
+                    <label for="client-notes">Notes</label>
+                    <textarea id="client-notes" class="textarea" rows="2" @bind="_client.Notes"></textarea>
+                    <span class="hint">Only you see these.</span>
+                </div>
+            </div>
+        </form>
+    </ChildContent>
+    <Footer>
+        <button type="submit" form="client-form" class="btn btn-primary">@(IsNew ? "Add client" : "Save client")</button>
+        <button type="button" class="btn btn-ghost" @onclick="OnClose">Cancel</button>
+    </Footer>
+</Drawer>
+
+@code {
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public Client? Client { get; set; }
+    [Parameter] public EventCallback<Client> OnSaved { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    Client _client = new();
+    IReadOnlyList<string>? _errors;
+    bool _wasOpen;
+
+    bool IsNew => _client.Id == 0;
+
+    protected override void OnParametersSet()
+    {
+        // copy on open so cancelling leaves the caller's client untouched
+        if (Open && !_wasOpen)
+        {
+            _client = Client?.Clone() ?? new Client();
+            _errors = null;
+        }
+        _wasOpen = Open;
+    }
+
+    async Task SaveAsync()
+    {
+        try
+        {
+            var isNew = IsNew;
+            var saved = await Clients.SaveAsync(_client);
+            Toasts.Show(isNew ? $"{saved.Name} added" : "Client saved");
+            await OnSaved.InvokeAsync(saved);
+        }
+        catch (ValidationException ex)
+        {
+            _errors = ex.Errors;
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error(ex);
+        }
+    }
+}

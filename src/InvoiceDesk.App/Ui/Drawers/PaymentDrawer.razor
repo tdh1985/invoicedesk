@@ -1,0 +1,117 @@
+@inject InvoiceService InvoiceStore
+@inject ToastService Toasts
+@inject TimeProvider Clock
+
+<Drawer Open="Open" Title="Record payment" OnClose="OnClose">
+    <ChildContent>
+        <form id="payment-form" class="col gap-16" @onsubmit="SaveAsync">
+            @if (_errors is { Count: > 0 })
+            {
+                <div class="banner banner-error"><Icon Name="alert" Size="16" /><div>@string.Join(" ", _errors)</div></div>
+            }
+            @if (Invoice is not null)
+            {
+                <p class="soft">@Invoice.Number for @Invoice.Client?.Name. Balance due <strong class="num">@Format.Money(BalanceCents)</strong>.</p>
+            }
+            <div class="form-grid">
+                <div class="field">
+                    <label for="payment-amount">Amount received</label>
+                    <MoneyInput Id="payment-amount" @bind-Cents="_amount" />
+                </div>
+                <div class="field">
+                    <label for="payment-date">Date received</label>
+                    <input id="payment-date" type="date" class="input" value="@Format.Iso(_date)" @onchange="OnDateChanged" />
+                </div>
+                <div class="field">
+                    <label for="payment-method">How they paid</label>
+                    <select id="payment-method" class="select" @bind="_method">
+                        <option value="@PaymentMethod.BankTransfer">Bank transfer</option>
+                        <option value="@PaymentMethod.Card">Card</option>
+                        <option value="@PaymentMethod.Cash">Cash</option>
+                        <option value="@PaymentMethod.Other">Other</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="payment-note">Note</label>
+                    <input id="payment-note" class="input" placeholder="Optional" @bind="_note" />
+                </div>
+            </div>
+            @if (BalanceCents > 0 && _amount > BalanceCents)
+            {
+                <div class="banner banner-warn"><Icon Name="alert" Size="16" /><div>That's more than the balance due of @Format.Money(BalanceCents).</div></div>
+            }
+            <div class="field">
+                <span class="label">Remittance or receipt</span>
+                <FileDropZone Title="Drop the remittance or receipt here" OnFiles="AddFiles" />
+                <AttachmentGallery Staged="_files" OnRemoveStaged="RemoveFile" />
+            </div>
+        </form>
+    </ChildContent>
+    <Footer>
+        <button type="submit" form="payment-form" class="btn btn-primary" disabled="@(_saving || _amount <= 0)">
+            <Icon Name="check" Size="16" /> Record @Format.Money(_amount)
+        </button>
+        <button type="button" class="btn btn-ghost" @onclick="OnClose">Cancel</button>
+    </Footer>
+</Drawer>
+
+@code {
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public Invoice? Invoice { get; set; }
+    [Parameter] public long BalanceCents { get; set; }
+    [Parameter] public EventCallback OnSaved { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    long _amount;
+    DateOnly _date;
+    PaymentMethod _method = PaymentMethod.BankTransfer;
+    string _note = "";
+    List<StagedFile> _files = [];
+    IReadOnlyList<string>? _errors;
+    bool _saving;
+    bool _wasOpen;
+
+    protected override void OnParametersSet()
+    {
+        if (Open && !_wasOpen)
+        {
+            _amount = Math.Max(0, BalanceCents);
+            _date = Clock.Today();
+            _method = PaymentMethod.BankTransfer;
+            _note = "";
+            _files = [];
+            _errors = null;
+        }
+        _wasOpen = Open;
+    }
+
+    void OnDateChanged(ChangeEventArgs e) => _date = Format.ParseIso(e.Value?.ToString()) ?? _date;
+
+    void AddFiles(IReadOnlyList<StagedFile> files) => _files.AddRange(files);
+
+    void RemoveFile(StagedFile file) => _files.Remove(file);
+
+    async Task SaveAsync()
+    {
+        if (Invoice is null || _saving) return;
+        _saving = true;
+        try
+        {
+            await InvoiceStore.RecordPaymentAsync(Invoice.Id, new PaymentInput(_date, _amount, _method, _note), _files);
+            Toasts.Show($"Payment of {Format.Money(_amount)} recorded");
+            await OnSaved.InvokeAsync();
+        }
+        catch (ValidationException ex)
+        {
+            _errors = ex.Errors;
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error(ex);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

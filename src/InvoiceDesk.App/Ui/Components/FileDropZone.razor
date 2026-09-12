@@ -1,0 +1,51 @@
+@inject AttachmentStore Store
+@inject ToastService Toasts
+
+<div class="dropzone @(Compact ? "compact" : null) @(_over ? "over" : null)"
+     @ondragenter="() => _over = true" @ondragleave="() => _over = false" @ondrop="() => _over = false">
+    <InputFile OnChange="OnChangeAsync" multiple="@Multiple" accept="@Accept" title="" aria-label="@Title" />
+    <span class="dropzone-art"><Icon Name="@IconName" /></span>
+    <div class="col grow">
+        <strong>@Title</strong>
+        <span class="small muted">@(_busy ? "Adding…" : Hint)</span>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Accept { get; set; } = AttachmentStore.AcceptList;
+    [Parameter] public bool Multiple { get; set; } = true;
+    [Parameter] public bool Compact { get; set; }
+    [Parameter] public string Title { get; set; } = "Drop receipts here, or click to choose";
+    [Parameter] public string Hint { get; set; } = "PDF, JPG, PNG or WebP, up to 25 MB each";
+    [Parameter] public string IconName { get; set; } = "upload";
+    [Parameter] public EventCallback<IReadOnlyList<StagedFile>> OnFiles { get; set; }
+
+    bool _over;
+    bool _busy;
+
+    async Task OnChangeAsync(InputFileChangeEventArgs e)
+    {
+        _over = false;
+        _busy = true;
+        var staged = new List<StagedFile>();
+        foreach (var file in e.GetMultipleFiles(20))
+        {
+            if (AttachmentStore.ValidationError(file.Name, file.Size) is { } error)
+            {
+                Toasts.Show(error, ToastKind.Error);
+                continue;
+            }
+            try
+            {
+                await using var stream = file.OpenReadStream(AttachmentStore.MaxBytes);
+                staged.Add(await Store.StageAsync(stream, file.Name, file.Size));
+            }
+            catch (Exception ex)
+            {
+                Toasts.Error(ex);
+            }
+        }
+        _busy = false;
+        if (staged.Count > 0) await OnFiles.InvokeAsync(staged);
+    }
+}

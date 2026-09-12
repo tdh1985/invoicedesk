@@ -238,6 +238,7 @@ public sealed class InvoiceService(
             throw;
         }
 
+        store.DiscardStaged(receipts);
         payment.Category = sales;
         Changed?.Invoke();
         return payment;

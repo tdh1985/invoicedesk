@@ -1,0 +1,420 @@
+@page "/settings"
+@implements IDisposable
+@inject ProfileService Profiles
+@inject CategoryService Categories
+@inject ThemeService Theme
+@inject ToastService Toasts
+@inject ShortcutService Shortcuts
+@inject AppPaths Paths
+@inject Desktop Desktop
+
+<div class="page">
+    <PageHeader Title="Settings">
+        <Subtitle>Your details here are printed on every invoice.</Subtitle>
+    </PageHeader>
+
+    @if (_profile is not null)
+    {
+        <div class="settings">
+            <nav class="settings-nav" aria-label="Settings sections">
+                <a href="settings#business">Business</a>
+                <a href="settings#payment">Payment details</a>
+                <a href="settings#invoices">Invoices</a>
+                <a href="settings#gst">GST</a>
+                <a href="settings#categories">Categories</a>
+                <a href="settings#appearance">Appearance</a>
+                <a href="settings#data">Your data</a>
+            </nav>
+
+            <div>
+                <section class="settings-group" id="business">
+                    <h2>Business</h2>
+                    <p class="soft">Shown at the top of each invoice. Tax invoices must include your business name and ABN.</p>
+                    <div class="form-grid">
+                        <div class="field span-2">
+                            <label for="biz-name">Business name</label>
+                            <input id="biz-name" class="input" @bind="_profile.Name" @bind:event="oninput" @bind:after="MarkDirty" />
+                        </div>
+                        <div class="field">
+                            <label for="biz-abn">ABN</label>
+                            <input id="biz-abn" class="input num" style="text-align:left" placeholder="11 digits"
+                                   @bind="_profile.Abn" @bind:event="oninput" @bind:after="MarkDirty" />
+                            <span class="hint @(AbnState == false ? "field-error" : null)">@AbnHint</span>
+                        </div>
+                        <div class="field">
+                            <label for="biz-phone">Phone</label>
+                            <input id="biz-phone" type="tel" class="input" @bind="_profile.Phone" @bind:event="oninput" @bind:after="MarkDirty" />
+                        </div>
+                        <div class="field span-2">
+                            <label for="biz-email">Email</label>
+                            <input id="biz-email" type="email" class="input" @bind="_profile.Email" @bind:event="oninput" @bind:after="MarkDirty" />
+                        </div>
+                        <div class="field span-2">
+                            <label for="biz-address">Address</label>
+                            <textarea id="biz-address" class="textarea" rows="3" @bind="_profile.Address" @bind:event="oninput" @bind:after="MarkDirty"></textarea>
+                        </div>
+                        <div class="field span-2">
+                            <span class="label">Logo</span>
+                            <div class="logo-box">
+                                <div class="logo-preview">
+                                    @if (_profile.LogoAttachment is { } logo)
+                                    {
+                                        <img src="@FilesUrl.For(logo.StoredPath)" alt="Your logo" />
+                                    }
+                                    else
+                                    {
+                                        <Icon Name="image" Size="24" Class="muted" />
+                                    }
+                                </div>
+                                <div class="col gap-8 grow">
+                                    <FileDropZone Compact Multiple="false" Accept="@AttachmentStore.ImageAcceptList" IconName="image"
+                                                  Title="Drop your logo here, or click to choose" Hint="JPG, PNG or WebP. A wide logo on a clear background prints best."
+                                                  OnFiles="SetLogoAsync" />
+                                    @if (_profile.LogoAttachment is not null)
+                                    {
+                                        <div><button type="button" class="btn btn-ghost btn-sm" @onclick="RemoveLogoAsync"><Icon Name="trash" Size="14" /> Remove logo</button></div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="settings-group" id="payment">
+                    <h2>Payment details</h2>
+                    <p class="soft">Printed on invoices so clients know where to pay. The invoice number is used as the payment reference.</p>
+                    <div class="form-grid">
+                        <div class="field span-2">
+                            <label for="bank-name">Account name</label>
+                            <input id="bank-name" class="input" @bind="_profile.BankAccountName" @bind:event="oninput" @bind:after="MarkDirty" />
+                        </div>
+                        <div class="field">
+                            <label for="bank-bsb">BSB</label>
+                            <input id="bank-bsb" class="input num" style="text-align:left" placeholder="000-000"
+                                   @bind="_profile.Bsb" @bind:event="oninput" @bind:after="MarkDirty" />
+                        </div>
+                        <div class="field">
+                            <label for="bank-acc">Account number</label>
+                            <input id="bank-acc" class="input num" style="text-align:left"
+                                   @bind="_profile.AccountNumber" @bind:event="oninput" @bind:after="MarkDirty" />
+                        </div>
+                    </div>
+                </section>
+
+                <section class="settings-group" id="invoices">
+                    <h2>Invoices</h2>
+                    <p class="soft">How new invoices are numbered and when they fall due.</p>
+                    <div class="form-grid">
+                        <div class="field">
+                            <label for="inv-prefix">Number prefix</label>
+                            <input id="inv-prefix" class="input" @bind="_profile.InvoicePrefix" @bind:event="oninput" @bind:after="MarkDirty" />
+                        </div>
+                        <div class="field">
+                            <label for="inv-next">Next number</label>
+                            <input id="inv-next" type="number" min="1" class="input num" @bind="_profile.NextInvoiceNumber" @bind:after="MarkDirty" />
+                        </div>
+                        <div class="field">
+                            <label for="inv-pad">Minimum digits</label>
+                            <input id="inv-pad" type="number" min="0" max="8" class="input num" @bind="_profile.NumberPadding" @bind:after="MarkDirty" />
+                            <span class="hint">Next invoice will be <strong class="num">@NumberExample</strong></span>
+                        </div>
+                        <div class="field">
+                            <label for="inv-terms">Payment terms</label>
+                            <div class="affix suffix">
+                                <input id="inv-terms" type="number" min="0" max="365" class="input num" @bind="_profile.PaymentTermsDays" @bind:after="MarkDirty" />
+                                <span class="affix-text">days</span>
+                            </div>
+                        </div>
+                        <div class="field span-2">
+                            <label for="inv-footer">Footer note</label>
+                            <textarea id="inv-footer" class="textarea" rows="2" @bind="_profile.FooterNote" @bind:event="oninput" @bind:after="MarkDirty"></textarea>
+                            <span class="hint">Printed at the bottom of every invoice.</span>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="settings-group" id="gst">
+                    <h2>GST</h2>
+                    <p class="soft">When you're registered, new invoices start as tax invoices with GST added. You can still turn GST off on any single invoice.</p>
+                    <div class="col gap-16">
+                        <label class="switch">
+                            <input type="checkbox" @bind="_profile.GstRegistered" @bind:after="MarkDirty" />
+                            <span>I'm registered for GST</span>
+                        </label>
+                        <div class="field" style="max-width:200px">
+                            <label for="gst-rate">GST rate</label>
+                            <div class="affix suffix">
+                                <input id="gst-rate" type="number" step="0.01" min="0" max="100" class="input num" @bind="GstPercent" @bind:after="MarkDirty" />
+                                <span class="affix-text">%</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="settings-group" id="categories">
+                    <h2>Categories</h2>
+                    <p class="soft">Used to sort money in and out. Archived categories stay on old entries but aren't offered for new ones. Changes here save straight away.</p>
+                    <div class="form-grid">
+                        @foreach (var direction in new[] { Direction.In, Direction.Out })
+                        {
+                            var list = _categories.Where(c => c.Direction == direction).ToList();
+                            <div class="field">
+                                <span class="label">@(direction == Direction.In ? "Money in" : "Money out")</span>
+                                <div class="cat-list">
+                                    @foreach (var cat in list)
+                                    {
+                                        <div class="cat-row @(cat.IsArchived ? "archived" : null)" @key="cat.Id">
+                                            <input class="input grow" value="@cat.Name" aria-label="Category name"
+                                                   @onchange="e => RenameAsync(cat, e.Value?.ToString())" />
+                                            <button type="button" class="btn btn-ghost btn-sm btn-icon" title="@(cat.IsArchived ? "Restore" : "Archive")"
+                                                    @onclick="() => ToggleArchiveAsync(cat)">
+                                                <Icon Name="@(cat.IsArchived ? "undo" : "archive")" Size="15" />
+                                            </button>
+                                        </div>
+                                    }
+                                    <form class="cat-row" @onsubmit="() => AddCategoryAsync(direction)">
+                                        <input class="input grow" placeholder="Add a category" aria-label="New category name"
+                                               value="@NewName(direction)" @oninput="e => _newNames[direction] = e.Value?.ToString() ?? string.Empty" />
+                                        <button type="submit" class="btn btn-ghost btn-sm btn-icon" title="Add"><Icon Name="plus" Size="15" /></button>
+                                    </form>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </section>
+
+                <section class="settings-group" id="appearance">
+                    <h2>Appearance</h2>
+                    <p class="soft">The accent colour is used on your invoices and throughout the app.</p>
+                    <div class="col gap-16">
+                        <div class="field">
+                            <span class="label">Accent colour</span>
+                            <div class="swatches">
+                                @foreach (var (name, hex) in Swatches)
+                                {
+                                    <button type="button" class="swatch @(Same(hex) ? "on" : null)" style="background:@hex"
+                                            title="@name" aria-label="@name" aria-pressed="@Same(hex)" @onclick="() => PickAccent(hex)"></button>
+                                }
+                                <input type="color" aria-label="Custom colour" value="@_profile.AccentColour.ToLowerInvariant()"
+                                       @onchange="e => PickAccent(e.Value?.ToString() ?? _profile.AccentColour)" />
+                                <span class="btn btn-sm" style="margin-left:8px; background:@_profile.AccentColour; border-color:@_profile.AccentColour; color:#fff; pointer-events:none">Preview</span>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <span class="label">Theme</span>
+                            <div class="seg" role="group" aria-label="Theme">
+                                @foreach (var choice in ThemeService.Choices)
+                                {
+                                    <button type="button" class="@(Theme.Theme == choice ? "on" : null)" aria-pressed="@(Theme.Theme == choice)"
+                                            @onclick="() => Theme.Set(choice)">@ThemeLabel(choice)</button>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="settings-group" id="data">
+                    <h2>Your data</h2>
+                    <p class="soft">Everything is stored on this PC, in one folder. To back up, copy that folder somewhere safe. A copy of the database is also made each time the app starts, and the last 10 are kept.</p>
+                    <div class="col gap-12">
+                        <code class="small soft" style="user-select:all">@Paths.Root</code>
+                        <div class="row gap-8">
+                            <button type="button" class="btn" @onclick="() => Desktop.OpenFolder(Paths.Root)"><Icon Name="folder" Size="16" /> Open data folder</button>
+                            <button type="button" class="btn" @onclick="() => Desktop.OpenFolder(Paths.Backups)"><Icon Name="database" Size="16" /> Open backups</button>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        @if (_dirty)
+        {
+            <div class="savebar">
+                <span class="grow">
+                    @if (_errors is { Count: > 0 })
+                    {
+                        <span class="danger-text">@string.Join(" ", _errors)</span>
+                    }
+                    else
+                    {
+                        <text>You have unsaved changes.</text>
+                    }
+                </span>
+                <button type="button" class="btn btn-ghost" @onclick="DiscardAsync">Discard</button>
+                <button type="button" class="btn btn-primary" @onclick="SaveAsync"><Icon Name="check" Size="16" /> Save changes <kbd>Ctrl S</kbd></button>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    static readonly (string Name, string Hex)[] Swatches =
+    [
+        ("Eucalyptus", "#2E6B57"),
+        ("Harbour", "#1F5F8B"),
+        ("Jacaranda", "#6E4FA0"),
+        ("Ochre", "#A8641C"),
+        ("Red gum", "#A23B2E"),
+        ("Slate", "#3C4658"),
+    ];
+
+    BusinessProfile? _profile;
+    List<Category> _categories = [];
+    readonly Dictionary<Direction, string> _newNames = new() { [Direction.In] = "", [Direction.Out] = "" };
+    IReadOnlyList<string>? _errors;
+    bool _dirty;
+
+    decimal GstPercent
+    {
+        get => (_profile?.GstRateBasisPoints ?? 0) / 100m;
+        set { if (_profile is not null) _profile.GstRateBasisPoints = (int)Math.Round(value * 100); }
+    }
+
+    bool? AbnState => _profile is null || string.IsNullOrWhiteSpace(_profile.Abn) ? null : Abn.IsValid(_profile.Abn);
+
+    string AbnHint => AbnState switch
+    {
+        true => $"Valid ABN: {Abn.Format(_profile!.Abn)}",
+        false => "This doesn't pass the ATO's ABN check. Check each digit.",
+        _ => "Needed for tax invoices.",
+    };
+
+    string NumberExample => _profile is null ? "" : InvoiceNumbering.Format(_profile.InvoicePrefix, Math.Max(1, _profile.NextInvoiceNumber), _profile.NumberPadding);
+
+    protected override async Task OnInitializedAsync()
+    {
+        Shortcuts.Pressed += OnShortcut;
+        Theme.Changed += OnThemeChanged;
+        _profile = await Profiles.GetAsync();
+        await LoadCategoriesAsync();
+    }
+
+    async Task LoadCategoriesAsync() => _categories = await Categories.ListAsync(includeArchived: true);
+
+    void MarkDirty()
+    {
+        _dirty = true;
+        _errors = null;
+    }
+
+    bool Same(string hex) => string.Equals(_profile?.AccentColour, hex, StringComparison.OrdinalIgnoreCase);
+
+    void PickAccent(string hex)
+    {
+        if (_profile is null) return;
+        _profile.AccentColour = hex.ToUpperInvariant();
+        MarkDirty();
+    }
+
+    async Task SaveAsync()
+    {
+        if (_profile is null) return;
+        try
+        {
+            await Profiles.SaveAsync(_profile);
+            _profile = await Profiles.GetAsync();
+            _dirty = false;
+            _errors = null;
+            Toasts.Show("Settings saved");
+        }
+        catch (ValidationException ex)
+        {
+            _errors = ex.Errors;
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error(ex);
+        }
+    }
+
+    async Task DiscardAsync()
+    {
+        _profile = await Profiles.GetAsync();
+        _dirty = false;
+        _errors = null;
+    }
+
+    async Task SetLogoAsync(IReadOnlyList<StagedFile> files)
+    {
+        try
+        {
+            await Profiles.SetLogoAsync(files[0]);
+            await RefreshLogoAsync();
+            Toasts.Show("Logo updated");
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error(ex);
+        }
+    }
+
+    async Task RemoveLogoAsync()
+    {
+        await Profiles.SetLogoAsync(null);
+        await RefreshLogoAsync();
+        Toasts.Show("Logo removed");
+    }
+
+    // only the logo changes so unsaved edits elsewhere on the page survive
+    async Task RefreshLogoAsync()
+    {
+        var fresh = await Profiles.GetAsync();
+        _profile!.LogoAttachmentId = fresh.LogoAttachmentId;
+        _profile.LogoAttachment = fresh.LogoAttachment;
+    }
+
+    string NewName(Direction direction) => _newNames[direction];
+
+    async Task AddCategoryAsync(Direction direction)
+    {
+        var name = _newNames[direction].Trim();
+        if (name.Length == 0) return;
+        try
+        {
+            await Categories.SaveAsync(new Category { Name = name, Direction = direction });
+            _newNames[direction] = "";
+            await LoadCategoriesAsync();
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error(ex);
+        }
+    }
+
+    async Task RenameAsync(Category category, string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name.Trim() == category.Name) return;
+        try
+        {
+            category.Name = name.Trim();
+            await Categories.SaveAsync(category);
+            Toasts.Show("Category renamed");
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error(ex);
+        }
+        await LoadCategoriesAsync();
+    }
+
+    async Task ToggleArchiveAsync(Category category)
+    {
+        await Categories.SetArchivedAsync(category.Id, !category.IsArchived);
+        await LoadCategoriesAsync();
+    }
+
+    static string ThemeLabel(string choice) => choice switch { "light" => "Light", "dark" => "Dark", _ => "Match Windows" };
+
+    void OnShortcut(string key)
+    {
+        if (key == "s" && _dirty) InvokeAsync(SaveAsync);
+    }
+
+    void OnThemeChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Shortcuts.Pressed -= OnShortcut;
+        Theme.Changed -= OnThemeChanged;
+    }
+}

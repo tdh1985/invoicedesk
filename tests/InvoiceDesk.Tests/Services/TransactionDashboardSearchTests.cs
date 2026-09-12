@@ -27,6 +27,18 @@ public class TransactionServiceTests
     }
 
     [Fact]
+    public async Task staged_copy_is_removed_after_saving()
+    {
+        await using var env = await TestEnv.CreateAsync();
+        var staged = await env.StageFileAsync("receipt.pdf");
+
+        await env.Get<TransactionService>().SaveAsync(Expense(env), [staged], []);
+
+        Assert.False(File.Exists(staged.TempPath));
+        Assert.Single(env.AttachmentFiles());
+    }
+
+    [Fact]
     public async Task delete_removes_files()
     {
         await using var env = await TestEnv.CreateAsync();

@@ -1,0 +1,51 @@
+@implements IDisposable
+@inject ShortcutService Shortcuts
+@inject IJSRuntime JS
+
+@if (Open)
+{
+    <div class="scrim" @onclick="CloseAsync"></div>
+    <aside class="drawer @(Wide ? "wide" : null)" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+        <header class="drawer-head">
+            <h2 id="drawer-title">@Title</h2>
+            <button type="button" class="btn btn-ghost btn-icon" aria-label="Close" @onclick="CloseAsync"><Icon Name="x" /></button>
+        </header>
+        <div class="drawer-body">@ChildContent</div>
+        @if (Footer is not null)
+        {
+            <footer class="drawer-foot">@Footer</footer>
+        }
+    </aside>
+}
+
+@code {
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public bool Wide { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment? Footer { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    bool _focused;
+
+    protected override void OnInitialized() => Shortcuts.Pressed += OnKey;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Open && !_focused)
+        {
+            _focused = true;
+            await JS.InvokeVoidAsync("invoicedesk.focus", ".drawer-body input:not([type=file]):not([type=checkbox]), .drawer-body textarea, .drawer-body select");
+        }
+        if (!Open) _focused = false;
+    }
+
+    void OnKey(string key)
+    {
+        if (key == "escape" && Open) InvokeAsync(CloseAsync);
+    }
+
+    Task CloseAsync() => OnClose.InvokeAsync();
+
+    public void Dispose() => Shortcuts.Pressed -= OnKey;
+}

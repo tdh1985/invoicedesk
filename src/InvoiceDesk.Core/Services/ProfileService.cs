@@ -65,6 +65,7 @@ public sealed partial class ProfileService(IDbContextFactory<AppDbContext> facto
         }
 
         if (old is not null) store.DeleteFile(old);
+        if (file is not null) store.DiscardStaged([file]);
         Changed?.Invoke();
     }
 
