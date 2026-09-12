@@ -1,0 +1,23 @@
+namespace InvoiceDesk.Core.Domain;
+
+public class Invoice
+{
+    public int Id { get; set; }
+    public string Number { get; set; } = "";
+    public int ClientId { get; set; }
+    public Client? Client { get; set; }
+    public DateOnly IssueDate { get; set; }
+    public DateOnly DueDate { get; set; }
+    public InvoiceStatus Status { get; set; }
+    public bool GstEnabled { get; set; }
+    public int GstRateBasisPoints { get; set; } = 1000;
+    public string Notes { get; set; } = "";
+    public DateTime CreatedAt { get; set; }
+    public DateTime? SentAt { get; set; }
+    public DateTime? VoidedAt { get; set; }
+    public List<InvoiceLine> Lines { get; set; } = [];
+    public List<Transaction> Payments { get; set; } = [];
+    public List<Attachment> Attachments { get; set; } = [];
+
+    public long PaidCents => Payments.Where(p => p.Direction == Direction.In).Sum(p => p.AmountCents);
+}

@@ -1,0 +1,28 @@
+namespace InvoiceDesk.Core.Domain;
+
+public class BusinessProfile
+{
+    public const int SingletonId = 1;
+
+    public int Id { get; set; } = SingletonId;
+    public string Name { get; set; } = "";
+    public string Abn { get; set; } = "";
+    public string Address { get; set; } = "";
+    public string Email { get; set; } = "";
+    public string Phone { get; set; } = "";
+    public int? LogoAttachmentId { get; set; }
+    public Attachment? LogoAttachment { get; set; }
+    public string BankAccountName { get; set; } = "";
+    public string Bsb { get; set; } = "";
+    public string AccountNumber { get; set; } = "";
+    public string AccentColour { get; set; } = "#4F46E5";
+    public int PaymentTermsDays { get; set; } = 14;
+    public string InvoicePrefix { get; set; } = "INV-";
+    public int NextInvoiceNumber { get; set; } = 1;
+    public int NumberPadding { get; set; } = 4;
+    public bool GstRegistered { get; set; } = true;
+    public int GstRateBasisPoints { get; set; } = 1000;
+    public string FooterNote { get; set; } = "Thank you for your business.";
+
+    public BusinessProfile Clone() => (BusinessProfile)MemberwiseClone();
+}
