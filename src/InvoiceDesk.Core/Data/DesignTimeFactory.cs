@@ -1,0 +1,11 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Design;
+
+namespace InvoiceDesk.Core.Data;
+
+// only used by dotnet-ef when generating migrations
+public sealed class DesignTimeFactory : IDesignTimeDbContextFactory<AppDbContext>
+{
+    public AppDbContext CreateDbContext(string[] args) =>
+        new(new DbContextOptionsBuilder<AppDbContext>().UseSqlite("Data Source=design.db").Options);
+}
