@@ -54,6 +54,20 @@ public sealed class Desktop
         return dialog.ShowDialog(Application.Current.MainWindow) == true ? dialog.FileName : null;
     }
 
+    public string? PickFolder(string title, string? initialFolder)
+    {
+        var dialog = new OpenFolderDialog { Title = title, Multiselect = false };
+        if (!string.IsNullOrEmpty(initialFolder) && Directory.Exists(initialFolder)) dialog.InitialDirectory = initialFolder;
+        return dialog.ShowDialog(Application.Current.MainWindow) == true ? dialog.FolderName : null;
+    }
+
+    // a fresh process reads the new data folder from the pointer file
+    public void Restart()
+    {
+        Process.Start(new ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = false });
+        Application.Current.Shutdown();
+    }
+
     static void Start(string target) => Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
 }
 

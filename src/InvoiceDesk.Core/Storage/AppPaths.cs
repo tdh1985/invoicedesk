@@ -1,33 +1,56 @@
 namespace InvoiceDesk.Core.Storage;
 
-public sealed class AppPaths(string root)
+// data files can live in a synced folder, but caches and window prefs always stay on this pc
+public sealed class AppPaths
 {
-    public string Root { get; } = Path.GetFullPath(root);
-    public string Database => Path.Combine(Root, "invoicedesk.db");
-    public string Attachments => Path.Combine(Root, "attachments");
-    public string Exports => Path.Combine(Root, "exports");
-    public string Backups => Path.Combine(Root, "backups");
-    public string Logs => Path.Combine(Root, "logs");
-    public string Staging => Path.Combine(Root, "staging");
-    public string Render => Path.Combine(Root, "render");
-    public string WebView => Path.Combine(Root, "webview");
-    public string Prefs => Path.Combine(Root, "prefs.json");
+    public const string DatabaseFileName = "invoicedesk.db";
 
-    // INVOICEDESK_DATA lets a test run use a clean folder without touching real data
+    public AppPaths(string dataRoot, string localRoot)
+    {
+        DataRoot = Path.GetFullPath(dataRoot);
+        LocalRoot = Path.GetFullPath(localRoot);
+    }
+
+    public AppPaths(string root) : this(root, root)
+    {
+    }
+
+    public string DataRoot { get; }
+    public string LocalRoot { get; }
+    public string Root => DataRoot;
+    public bool IsCustomLocation => !string.Equals(DataRoot, LocalRoot, StringComparison.OrdinalIgnoreCase);
+
+    public string Database => Path.Combine(DataRoot, DatabaseFileName);
+    public string Attachments => Path.Combine(DataRoot, "attachments");
+    public string Exports => Path.Combine(DataRoot, "exports");
+    public string Backups => Path.Combine(DataRoot, "backups");
+    public string LockFile => Path.Combine(DataRoot, "invoicedesk.lock");
+
+    public string Logs => Path.Combine(LocalRoot, "logs");
+    public string Staging => Path.Combine(LocalRoot, "staging");
+    public string Render => Path.Combine(LocalRoot, "render");
+    public string WebView => Path.Combine(LocalRoot, "webview");
+    public string Prefs => Path.Combine(LocalRoot, "prefs.json");
+
+    public static string LocalDefault() =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "InvoiceDesk");
+
+    // INVOICEDESK_LOCAL and INVOICEDESK_DATA let test runs use scratch folders instead of real data
     public static AppPaths Default()
     {
-        var custom = Environment.GetEnvironmentVariable("INVOICEDESK_DATA");
-        return new AppPaths(string.IsNullOrWhiteSpace(custom)
-            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "InvoiceDesk")
-            : custom);
+        var local = Environment.GetEnvironmentVariable("INVOICEDESK_LOCAL");
+        if (!string.IsNullOrWhiteSpace(local)) return DataLocation.Resolve(local);
+        var data = Environment.GetEnvironmentVariable("INVOICEDESK_DATA");
+        if (!string.IsNullOrWhiteSpace(data)) return new AppPaths(data);
+        return DataLocation.Resolve(LocalDefault());
     }
 
     public void EnsureCreated()
     {
-        foreach (var dir in new[] { Root, Attachments, Exports, Backups, Logs, Staging, Render, WebView })
+        foreach (var dir in new[] { DataRoot, Attachments, Exports, Backups, LocalRoot, Logs, Staging, Render, WebView })
             Directory.CreateDirectory(dir);
     }
 
     public string FullPath(string relativePath) =>
-        Path.Combine(Root, relativePath.Replace('/', Path.DirectorySeparatorChar));
+        Path.Combine(DataRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
 }

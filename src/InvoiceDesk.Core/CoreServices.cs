@@ -13,9 +13,13 @@ public static class CoreServices
     {
         services.AddSingleton(paths);
         services.TryAddSingleton<TimeProvider>(TimeProvider.System);
-        services.AddDbContextFactory<AppDbContext>(o => o.UseSqlite($"Data Source={paths.Database};Foreign Keys=True"));
+        // split queries so loading lines with payments never multiplies rows
+        services.AddDbContextFactory<AppDbContext>(o => o.UseSqlite(
+            $"Data Source={paths.Database};Foreign Keys=True",
+            sqlite => sqlite.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)));
         services.AddSingleton<AttachmentStore>();
         services.AddSingleton<DatabaseInitializer>();
+        services.AddSingleton<DataMover>();
         services.AddSingleton<ProfileService>();
         services.AddSingleton<ClientService>();
         services.AddSingleton<CategoryService>();

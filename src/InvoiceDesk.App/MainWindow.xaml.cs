@@ -68,7 +68,8 @@ public partial class MainWindow : Window
     {
         var core = e.WebView.CoreWebView2;
         e.WebView.DefaultBackgroundColor = ThemeColours.DeskDrawing(_theme.IsDark);
-        core.SetVirtualHostNameToFolderMapping(FilesUrl.Host, _paths.Root, CoreWebView2HostResourceAccessKind.Allow);
+        core.SetVirtualHostNameToFolderMapping(FilesUrl.Host, _paths.DataRoot, CoreWebView2HostResourceAccessKind.Allow);
+        core.SetVirtualHostNameToFolderMapping(FilesUrl.LocalHost, _paths.LocalRoot, CoreWebView2HostResourceAccessKind.Allow);
         core.Settings.IsStatusBarEnabled = false;
 #if !DEBUG
         // no reload, find or print shortcuts: this should feel like an app, not a browser tab

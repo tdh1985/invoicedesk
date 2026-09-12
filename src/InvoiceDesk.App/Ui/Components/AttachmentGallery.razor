@@ -34,7 +34,7 @@
                 <div class="tile-thumb">
                     @if (file.IsImage)
                     {
-                        <img src="@FilesUrl.For(file.RelativePath)" alt="" />
+                        <img src="@FilesUrl.ForLocal(file.RelativePath)" alt="" />
                     }
                     else
                     {
@@ -92,7 +92,7 @@
         _preview = new Preview(a.OriginalFileName, FilesUrl.For(a.StoredPath), Paths.FullPath(a.StoredPath), a.IsImage);
 
     void Show(StagedFile f) =>
-        _preview = new Preview(f.OriginalFileName, FilesUrl.For(f.RelativePath), f.TempPath, f.IsImage);
+        _preview = new Preview(f.OriginalFileName, FilesUrl.ForLocal(f.RelativePath), f.TempPath, f.IsImage);
 
     static void OnKey(KeyboardEventArgs e, Action open)
     {

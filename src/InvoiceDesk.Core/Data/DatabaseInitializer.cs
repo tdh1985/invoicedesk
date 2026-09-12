@@ -25,6 +25,8 @@ public sealed class DatabaseInitializer(
 
         await using var db = await factory.CreateDbContextAsync(ct);
         await db.Database.MigrateAsync(ct);
+        // wal keeps extra side files that cloud sync can copy half written
+        await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=DELETE;", ct);
         await SeedAsync(db, ct);
     }
 

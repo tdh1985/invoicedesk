@@ -1026,6 +1026,17 @@ input[type="color"] { width: 36px; height: 36px; padding: 2px; border: 1px solid
     .step:first-child { border-top: 0; }
 }
 
+.data-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px 18px;
+    border: 1px solid var(--rule);
+    border-radius: 11px;
+    background: var(--paper-2);
+}
+.data-path { display: block; font-family: var(--font-num); overflow-wrap: anywhere; user-select: all; }
+
 .facts { display: grid; gap: 12px; margin: 10px 0 0; }
 .facts dt { color: var(--ink-3); font-size: 12px; font-weight: 600; }
 .facts dd { margin: 2px 0 0; white-space: pre-line; overflow-wrap: anywhere; }

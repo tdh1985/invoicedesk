@@ -31,7 +31,7 @@ public sealed class PdfPrinter(AppPaths paths, HostWindow host) : IDisposable
             core.NavigationCompleted += OnCompleted;
             try
             {
-                core.Navigate(FilesUrl.For($"render/{Path.GetFileName(page)}"));
+                core.Navigate(FilesUrl.ForLocal($"render/{Path.GetFileName(page)}"));
                 if (!await loaded.Task.WaitAsync(TimeSpan.FromSeconds(20)))
                     throw new InvalidOperationException("The invoice page didn't load for printing.");
             }
@@ -74,7 +74,8 @@ public sealed class PdfPrinter(AppPaths paths, HostWindow host) : IDisposable
         _controller = await _env.CreateCoreWebView2ControllerAsync(host.Handle);
         _controller.IsVisible = false;
         _controller.Bounds = new System.Drawing.Rectangle(0, 0, 794, 1123);
-        _controller.CoreWebView2.SetVirtualHostNameToFolderMapping(FilesUrl.Host, paths.Root, CoreWebView2HostResourceAccessKind.Allow);
+        _controller.CoreWebView2.SetVirtualHostNameToFolderMapping(FilesUrl.Host, paths.DataRoot, CoreWebView2HostResourceAccessKind.Allow);
+        _controller.CoreWebView2.SetVirtualHostNameToFolderMapping(FilesUrl.LocalHost, paths.LocalRoot, CoreWebView2HostResourceAccessKind.Allow);
         return _controller.CoreWebView2;
     }
 

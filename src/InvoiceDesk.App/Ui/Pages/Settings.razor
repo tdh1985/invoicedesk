@@ -1,5 +1,7 @@
 @page "/settings"
+@using System.IO
 @implements IDisposable
+@inject DataMover Mover
 @inject ProfileService Profiles
 @inject CategoryService Categories
 @inject ThemeService Theme
@@ -215,12 +217,23 @@
 
                 <section class="settings-group" id="data">
                     <h2>Your data</h2>
-                    <p class="soft">Everything is stored on this PC, in one folder. To back up, copy that folder somewhere safe. A copy of the database is also made each time the app starts, and the last 10 are kept.</p>
-                    <div class="col gap-12">
-                        <code class="small soft" style="user-select:all">@Paths.Root</code>
-                        <div class="row gap-8">
-                            <button type="button" class="btn" @onclick="() => Desktop.OpenFolder(Paths.Root)"><Icon Name="folder" Size="16" /> Open data folder</button>
-                            <button type="button" class="btn" @onclick="() => Desktop.OpenFolder(Paths.Backups)"><Icon Name="database" Size="16" /> Open backups</button>
+                    <p class="soft">Everything is kept in one folder. Put it in OneDrive, Dropbox or Google Drive and you can use InvoiceDesk on another PC too, one PC at a time. A copy of the database is made each time the app starts, and the last 10 are kept.</p>
+                    <div class="data-card">
+                        <div class="row gap-8 wrap">
+                            <span class="pill @(SyncProvider is null ? "pill-plain" : "pill-paid")">@StorageLabel</span>
+                        </div>
+                        <code class="small soft data-path">@Paths.DataRoot</code>
+                        <div class="row gap-8 wrap">
+                            <button type="button" class="btn" @onclick="StartMove"><Icon Name="upload" Size="16" /> Move to a synced folder…</button>
+                            <button type="button" class="btn" @onclick="StartUseExisting"><Icon Name="folder" Size="16" /> Use data from another PC…</button>
+                        </div>
+                        <div class="row gap-8 wrap">
+                            <button type="button" class="btn btn-ghost btn-sm" @onclick="() => Desktop.OpenFolder(Paths.DataRoot)"><Icon Name="folder" Size="14" /> Open data folder</button>
+                            <button type="button" class="btn btn-ghost btn-sm" @onclick="() => Desktop.OpenFolder(Paths.Backups)"><Icon Name="database" Size="14" /> Open backups</button>
+                            @if (Paths.IsCustomLocation)
+                            {
+                                <button type="button" class="btn btn-ghost btn-sm" @onclick="StartUseLocal"><Icon Name="undo" Size="14" /> Switch back to this PC's own data</button>
+                            }
                         </div>
                     </div>
                 </section>
@@ -246,6 +259,17 @@
         }
     }
 </div>
+
+<Modal Open="_dataAction is not null" Title="@_dataAction?.Title" OnClose="() => _dataAction = null">
+    <ChildContent>
+        <p>@_dataAction?.Body</p>
+        <code class="small data-path mt-16">@_dataAction?.Folder</code>
+    </ChildContent>
+    <Footer>
+        <button type="button" class="btn btn-ghost" @onclick="() => _dataAction = null">Cancel</button>
+        <button type="button" class="btn btn-primary" @onclick="ConfirmDataActionAsync">@_dataAction?.Confirm</button>
+    </Footer>
+</Modal>
 
 @code {
     static readonly (string Name, string Hex)[] Swatches =
@@ -404,6 +428,87 @@
     }
 
     static string ThemeLabel(string choice) => choice switch { "light" => "Light", "dark" => "Dark", _ => "Match Windows" };
+
+    // data location
+
+    sealed record DataAction(string Title, string Body, string Folder, string Confirm, Action Run);
+
+    DataAction? _dataAction;
+
+    string? SyncProvider => Paths.DataRoot switch
+    {
+        var p when p.Contains("OneDrive", StringComparison.OrdinalIgnoreCase) => "OneDrive",
+        var p when p.Contains("Dropbox", StringComparison.OrdinalIgnoreCase) => "Dropbox",
+        var p when p.Contains("Google Drive", StringComparison.OrdinalIgnoreCase) || p.Contains("My Drive", StringComparison.OrdinalIgnoreCase) => "Google Drive",
+        _ => null,
+    };
+
+    string StorageLabel => SyncProvider is { } name ? $"Synced with {name}" : Paths.IsCustomLocation ? "Custom folder" : "Only on this PC";
+
+    static string SuggestedFolder() =>
+        Environment.GetEnvironmentVariable("OneDrive") is { Length: > 0 } oneDrive
+            ? oneDrive
+            : Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+
+    void StartMove()
+    {
+        var picked = Desktop.PickFolder("Choose a synced folder for your InvoiceDesk data", SuggestedFolder());
+        if (picked is null) return;
+        if (DataMover.FindDataFolder(picked) is { } existing)
+        {
+            OfferSwitch(existing, "That folder already has InvoiceDesk data in it. ");
+            return;
+        }
+        var target = string.Equals(Path.GetFileName(picked.TrimEnd('\\')), "InvoiceDesk", StringComparison.OrdinalIgnoreCase)
+            ? picked
+            : Path.Combine(picked, "InvoiceDesk");
+        _dataAction = new DataAction(
+            "Move your data?",
+            "Your invoices, clients, receipts and backups will be copied to this folder, then InvoiceDesk will restart using it. The current copy stays where it is as a spare.",
+            target, "Move and restart", () => Mover.MoveTo(target));
+    }
+
+    void StartUseExisting()
+    {
+        var picked = Desktop.PickFolder("Choose the InvoiceDesk folder from your other PC", SuggestedFolder());
+        if (picked is null) return;
+        if (DataMover.FindDataFolder(picked) is not { } found)
+        {
+            Toasts.Show("No InvoiceDesk data was found there. Pick the folder that contains invoicedesk.db.", ToastKind.Error);
+            return;
+        }
+        OfferSwitch(found, "");
+    }
+
+    void OfferSwitch(string folder, string lead) =>
+        _dataAction = new DataAction(
+            "Use this data?",
+            $"{lead}InvoiceDesk will restart using the data in this folder. The data it uses now stays where it is.",
+            folder, "Switch and restart", () => Mover.UseExisting(folder));
+
+    void StartUseLocal() =>
+        _dataAction = new DataAction(
+            "Switch back to this PC's data?",
+            "InvoiceDesk will restart using the data stored on this PC. Your synced folder isn't changed.",
+            Paths.LocalRoot, "Switch and restart", Mover.UseThisPc);
+
+    async Task ConfirmDataActionAsync()
+    {
+        var action = _dataAction;
+        if (action is null) return;
+        _dataAction = null;
+        try
+        {
+            if (_dirty) await SaveAsync();
+            await Toasts.FlushAsync();
+            action.Run();
+            Desktop.Restart();
+        }
+        catch (Exception ex)
+        {
+            Toasts.Error(ex);
+        }
+    }
 
     void OnShortcut(string key)
     {
