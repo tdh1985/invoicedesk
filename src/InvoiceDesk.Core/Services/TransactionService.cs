@@ -1,0 +1,109 @@
+using InvoiceDesk.Core.Data;
+using InvoiceDesk.Core.Domain;
+using InvoiceDesk.Core.Rules;
+using InvoiceDesk.Core.Storage;
+using Microsoft.EntityFrameworkCore;
+
+namespace InvoiceDesk.Core.Services;
+
+public sealed class TransactionService(IDbContextFactory<AppDbContext> factory, AttachmentStore store, TimeProvider clock)
+{
+    public event Action? Changed;
+
+    public async Task<List<Transaction>> ListAsync(TransactionFilter filter)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        IQueryable<Transaction> query = db.Transactions.AsNoTracking().AsSplitQuery()
+            .Include(t => t.Category).Include(t => t.Attachments).Include(t => t.Invoice);
+        if (filter.Direction is { } d) query = query.Where(t => t.Direction == d);
+        if (filter.Range is { } r) query = query.Where(t => t.Date >= r.Start && t.Date <= r.End);
+        if (filter.CategoryId is { } c) query = query.Where(t => t.CategoryId == c);
+
+        var term = Text.Clean(filter.Search);
+        return (await query.ToListAsync())
+            .Where(t => term.Length == 0 || Text.Has(t.Party, term) || Text.Has(t.Description, term)
+                        || Text.Has(t.Category?.Name, term) || Text.Has(t.Invoice?.Number, term))
+            .OrderByDescending(t => t.Date)
+            .ThenByDescending(t => t.Id)
+            .ToList();
+    }
+
+    public async Task<Transaction?> GetAsync(int id)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        return await db.Transactions.AsNoTracking().AsSplitQuery()
+            .Include(t => t.Category).Include(t => t.Attachments).Include(t => t.Invoice)
+            .FirstOrDefaultAsync(t => t.Id == id);
+    }
+
+    public async Task<Transaction> SaveAsync(Transaction t, IReadOnlyList<StagedFile> newFiles, IReadOnlyList<int> removedAttachmentIds)
+    {
+        var errors = new List<string>();
+        if (t.AmountCents <= 0) errors.Add("Amount must be more than zero.");
+        if (t.GstCents < 0 || t.GstCents > t.AmountCents) errors.Add("GST must be between zero and the amount.");
+        if (t.Date == default) errors.Add("Choose a date.");
+        ValidationException.ThrowIfAny(errors);
+
+        await using var db = await factory.CreateDbContextAsync();
+        Transaction entity;
+        if (t.Id == 0)
+        {
+            entity = new Transaction { CreatedAt = clock.Now() };
+            db.Transactions.Add(entity);
+        }
+        else
+        {
+            entity = await db.Transactions.Include(x => x.Attachments).SingleOrDefaultAsync(x => x.Id == t.Id)
+                     ?? throw new ValidationException("This entry no longer exists.");
+        }
+
+        entity.Direction = t.Direction;
+        entity.Date = t.Date;
+        entity.AmountCents = t.AmountCents;
+        entity.GstCents = t.GstCents;
+        entity.CategoryId = t.CategoryId;
+        entity.Party = Text.Clean(t.Party);
+        entity.Description = Text.Clean(t.Description);
+        entity.Method = t.Method;
+        entity.InvoiceId = t.InvoiceId;
+
+        var removed = entity.Attachments.Where(a => removedAttachmentIds.Contains(a.Id)).ToList();
+        foreach (var a in removed)
+        {
+            entity.Attachments.Remove(a);
+            db.Attachments.Remove(a);
+        }
+
+        var added = store.ImportAll(newFiles, AttachmentKind.Receipt);
+        entity.Attachments.AddRange(added);
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch
+        {
+            store.DeleteFiles(added);
+            throw;
+        }
+
+        store.DeleteFiles(removed);
+        Changed?.Invoke();
+        return entity;
+    }
+
+    public async Task DeleteAsync(int id)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        var entity = await db.Transactions.Include(x => x.Attachments).SingleOrDefaultAsync(x => x.Id == id);
+        if (entity is null) return;
+
+        var files = entity.Attachments.ToList();
+        db.Transactions.Remove(entity);
+        await db.SaveChangesAsync();
+        store.DeleteFiles(files);
+        Changed?.Invoke();
+    }
+
+    public long SuggestGst(long amountCents, BusinessProfile profile) =>
+        profile.GstRegistered ? MoneyMath.GstFromInclusive(amountCents, profile.GstRateBasisPoints) : 0;
+}

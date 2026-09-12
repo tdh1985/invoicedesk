@@ -1,0 +1,99 @@
+using InvoiceDesk.Core.Data;
+using InvoiceDesk.Core.Domain;
+using InvoiceDesk.Core.Rules;
+using Microsoft.EntityFrameworkCore;
+
+namespace InvoiceDesk.Core.Services;
+
+public sealed class ClientService(IDbContextFactory<AppDbContext> factory, TimeProvider clock)
+{
+    public event Action? Changed;
+
+    public async Task<List<ClientSummary>> ListAsync(string? search = null, bool includeArchived = false)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        IQueryable<Client> query = db.Clients.AsNoTracking().AsSplitQuery()
+            .Include(c => c.Invoices).ThenInclude(i => i.Lines)
+            .Include(c => c.Invoices).ThenInclude(i => i.Payments);
+        if (!includeArchived) query = query.Where(c => !c.IsArchived);
+
+        var clients = await query.ToListAsync();
+        var term = Text.Clean(search);
+        if (term.Length > 0)
+            clients = clients.Where(c => Text.Has(c.Name, term) || Text.Has(c.ContactName, term) || Text.Has(c.Email, term)).ToList();
+
+        return clients
+            .OrderBy(c => c.Name, StringComparer.CurrentCultureIgnoreCase)
+            .Select(Summarise)
+            .ToList();
+    }
+
+    public async Task<Client?> GetAsync(int id)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        return await db.Clients.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id);
+    }
+
+    public async Task<Client> SaveAsync(Client client)
+    {
+        var entity = client.Clone();
+        entity.Name = Text.Clean(entity.Name);
+        entity.ContactName = Text.Clean(entity.ContactName);
+        entity.Email = Text.Clean(entity.Email);
+        entity.Phone = Text.Clean(entity.Phone);
+        entity.Address = Text.Clean(entity.Address);
+        entity.Notes = Text.Clean(entity.Notes);
+        entity.Abn = Text.Clean(entity.Abn).Replace(" ", "");
+
+        var errors = new List<string>();
+        if (entity.Name.Length == 0) errors.Add("Client name is required.");
+        if (entity.Abn.Length > 0 && !Abn.IsValid(entity.Abn)) errors.Add("Client ABN must be 11 digits and pass the ATO check.");
+        if (entity.Email.Length > 0 && !entity.Email.Contains('@')) errors.Add("That email address doesn't look right.");
+        ValidationException.ThrowIfAny(errors);
+
+        await using var db = await factory.CreateDbContextAsync();
+        if (entity.Id == 0)
+        {
+            entity.CreatedAt = clock.Now();
+            db.Clients.Add(entity);
+        }
+        else
+        {
+            db.Clients.Update(entity);
+        }
+        await db.SaveChangesAsync();
+        Changed?.Invoke();
+        return entity;
+    }
+
+    public async Task DeleteAsync(int id)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        if (await db.Invoices.AnyAsync(i => i.ClientId == id))
+            throw new ValidationException("This client has invoices, so it can't be deleted. Archive it instead.");
+
+        var client = await db.Clients.FindAsync(id);
+        if (client is null) return;
+        db.Clients.Remove(client);
+        await db.SaveChangesAsync();
+        Changed?.Invoke();
+    }
+
+    public async Task SetArchivedAsync(int id, bool archived)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        var client = await db.Clients.FindAsync(id);
+        if (client is null) return;
+        client.IsArchived = archived;
+        await db.SaveChangesAsync();
+        Changed?.Invoke();
+    }
+
+    static ClientSummary Summarise(Client c)
+    {
+        var issued = c.Invoices.Where(i => i.Status == InvoiceStatus.Sent).ToList();
+        var billed = issued.Sum(i => i.Totals().TotalCents);
+        var outstanding = issued.Sum(i => Math.Max(0, i.Totals().TotalCents - i.PaidCents));
+        return new ClientSummary(c, c.Invoices.Count, billed, outstanding);
+    }
+}

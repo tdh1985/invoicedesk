@@ -15,7 +15,7 @@ public class BusinessProfile
     public string BankAccountName { get; set; } = "";
     public string Bsb { get; set; } = "";
     public string AccountNumber { get; set; } = "";
-    public string AccentColour { get; set; } = "#4F46E5";
+    public string AccentColour { get; set; } = "#2E6B57";
     public int PaymentTermsDays { get; set; } = 14;
     public string InvoicePrefix { get; set; } = "INV-";
     public int NextInvoiceNumber { get; set; } = 1;

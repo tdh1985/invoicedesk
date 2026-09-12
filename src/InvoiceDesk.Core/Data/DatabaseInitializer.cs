@@ -33,13 +33,16 @@ public sealed class DatabaseInitializer(
         if (!File.Exists(paths.Database)) return;
 
         var target = Path.Combine(paths.Backups, $"invoicedesk-{clock.GetLocalNow():yyyyMMdd-HHmmss}.db");
-        // sqlite's backup api gives a consistent copy even if a connection is open
+        if (File.Exists(target)) File.Delete(target);
+
+        // vacuum into runs as a normal statement so it retries while the file is busy
         using (var source = new SqliteConnection($"Data Source={paths.Database};Pooling=False"))
-        using (var destination = new SqliteConnection($"Data Source={target};Pooling=False"))
         {
             source.Open();
-            destination.Open();
-            source.BackupDatabase(destination);
+            using var command = source.CreateCommand();
+            command.CommandText = "VACUUM INTO $target";
+            command.Parameters.AddWithValue("$target", target);
+            command.ExecuteNonQuery();
         }
 
         var stale = Directory.GetFiles(paths.Backups, "invoicedesk-*.db")
