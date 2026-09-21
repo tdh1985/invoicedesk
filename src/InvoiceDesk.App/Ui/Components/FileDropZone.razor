@@ -21,15 +21,23 @@
     [Parameter] public string IconName { get; set; } = "upload";
     [Parameter] public EventCallback<IReadOnlyList<StagedFile>> OnFiles { get; set; }
 
+    const int MaxFiles = 20;
+
     bool _over;
     bool _busy;
 
     async Task OnChangeAsync(InputFileChangeEventArgs e)
     {
         _over = false;
+        // blazor throws past this count and that would take down the whole page
+        if (e.FileCount > MaxFiles)
+        {
+            Toasts.Show($"Add up to {MaxFiles} files at a time.", ToastKind.Error);
+            return;
+        }
         _busy = true;
         var staged = new List<StagedFile>();
-        foreach (var file in e.GetMultipleFiles(20))
+        foreach (var file in e.GetMultipleFiles(MaxFiles))
         {
             if (AttachmentStore.ValidationError(file.Name, file.Size) is { } error)
             {

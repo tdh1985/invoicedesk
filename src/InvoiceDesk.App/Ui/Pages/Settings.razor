@@ -514,7 +514,16 @@
         _dataAction = null;
         try
         {
-            if (_dirty) await SaveAsync();
+            if (_dirty)
+            {
+                await SaveAsync();
+                // unsaved settings would be lost in the restart
+                if (_dirty)
+                {
+                    Toasts.Show("Some settings need fixing before InvoiceDesk can restart.", ToastKind.Error);
+                    return;
+                }
+            }
             await Toasts.FlushAsync();
             action.Run();
             Desktop.Restart();

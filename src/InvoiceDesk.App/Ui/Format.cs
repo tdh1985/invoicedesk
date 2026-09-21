@@ -28,7 +28,7 @@ public static class Format
     }
 
     public static decimal? ParseQuantity(string? text) =>
-        decimal.TryParse(text?.Replace(",", "").Trim(), NumberStyles.Number, CultureInfo.InvariantCulture, out var q) ? Math.Round(q, 2) : null;
+        decimal.TryParse(text?.Replace(",", "").Trim(), NumberStyles.Number, CultureInfo.InvariantCulture, out var q) ? Math.Round(q, 2, MidpointRounding.AwayFromZero) : null;
 
     public static string Quantity(decimal q) => q.ToString("0.##", CultureInfo.InvariantCulture);
 

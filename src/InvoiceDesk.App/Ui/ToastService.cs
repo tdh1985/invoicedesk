@@ -134,7 +134,13 @@ public sealed class ToastService
         Func<Task>? commit;
         lock (_gate)
         {
-            if (!_pendingCommits.Remove(id, out commit)) return;
+            if (!_pendingCommits.Remove(id, out commit)) commit = null;
+        }
+        if (commit is null)
+        {
+            // undo or a flush already dealt with it but the toast is still up
+            Dismiss(id);
+            return;
         }
         try { await commit(); }
         catch (Exception ex) { Error(ex); }

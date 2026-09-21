@@ -56,7 +56,7 @@ public sealed class CategoryService(IDbContextFactory<AppDbContext> factory)
     {
         await using var db = await factory.CreateDbContextAsync();
         var income = db.Categories.AsNoTracking().Where(c => c.Direction == Direction.In);
-        var sales = await income.FirstOrDefaultAsync(c => c.Name == "Sales")
+        var sales = await income.OrderBy(c => c.IsArchived).FirstOrDefaultAsync(c => c.Name == "Sales")
                     ?? await income.Where(c => !c.IsArchived).OrderBy(c => c.SortOrder).FirstOrDefaultAsync();
         if (sales is not null) return sales;
 

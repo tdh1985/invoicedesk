@@ -233,4 +233,16 @@ public class CategoryServiceTests
         await using var env = await TestEnv.CreateAsync();
         Assert.Equal("Sales", (await env.Get<CategoryService>().GetSalesAsync()).Name);
     }
+
+    [Fact]
+    public async Task sales_prefers_an_active_category_over_an_archived_one()
+    {
+        await using var env = await TestEnv.CreateAsync();
+        var svc = env.Get<CategoryService>();
+        var old = await svc.GetSalesAsync();
+        await svc.SetArchivedAsync(old.Id, true);
+        var fresh = await svc.SaveAsync(new Category { Name = "Sales", Direction = Direction.In });
+
+        Assert.Equal(fresh.Id, (await svc.GetSalesAsync()).Id);
+    }
 }

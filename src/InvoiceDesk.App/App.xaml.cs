@@ -110,10 +110,22 @@ public partial class App : Application
             return;
         }
 
-        var window = new MainWindow(_services);
-        MainWindow = window;
-        _instance.ListenForActivation(() => Dispatcher.BeginInvoke(window.BringToFront));
-        window.Show();
+        // without a window the process would linger and swallow every later launch
+        try
+        {
+            var window = new MainWindow(_services);
+            MainWindow = window;
+            _instance.ListenForActivation(() => Dispatcher.BeginInvoke(window.BringToFront));
+            window.Show();
+        }
+        catch (Exception ex)
+        {
+            FileLog.Write(ex, "startup");
+            MessageBox.Show(
+                $"InvoiceDesk couldn't open its window.\n\n{ex.Message}\n\nDetails were saved in {paths.Logs}.",
+                "InvoiceDesk", MessageBoxButton.OK, MessageBoxImage.Error);
+            Shutdown(1);
+        }
     }
 
     protected override void OnExit(ExitEventArgs e)
