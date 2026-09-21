@@ -59,12 +59,11 @@
     int _active;
     List<Item> _items = [];
     CancellationTokenSource? _debounce;
-
-    protected override void OnInitialized() => Shortcuts.Pressed += OnShortcut;
+    IDisposable? _overlay;
 
     public void Open() => InvokeAsync(async () =>
     {
-        _open = true;
+        SetOpen(true);
         _query = "";
         _active = 0;
         _items = Actions.ToList();
@@ -73,11 +72,24 @@
         await JS.InvokeVoidAsync("invoicedesk.focus", "#palette-query");
     });
 
-    void Close() => _open = false;
+    void Close() => SetOpen(false);
 
-    void OnShortcut(string key)
+    void SetOpen(bool open)
     {
-        if (key == "escape" && _open) InvokeAsync(() => { _open = false; StateHasChanged(); });
+        _open = open;
+        if (open)
+        {
+            _overlay ??= Shortcuts.AddOverlay(() => _ = InvokeAsync(() =>
+            {
+                Close();
+                StateHasChanged();
+            }));
+        }
+        else
+        {
+            _overlay?.Dispose();
+            _overlay = null;
+        }
     }
 
     async Task OnInput(ChangeEventArgs e)
@@ -121,21 +133,18 @@
             case "Enter" when _items.Count > 0:
                 Go(_items[_active]);
                 break;
-            case "Escape":
-                _open = false;
-                break;
         }
     }
 
     void Go(Item item)
     {
-        _open = false;
+        Close();
         Nav.NavigateTo(item.Href);
     }
 
     public void Dispose()
     {
-        Shortcuts.Pressed -= OnShortcut;
+        _overlay?.Dispose();
         _debounce?.Cancel();
     }
 }

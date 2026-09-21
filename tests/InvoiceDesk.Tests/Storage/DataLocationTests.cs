@@ -78,6 +78,30 @@ public class DataMoverTests
     }
 
     [Fact]
+    public async Task a_failed_move_leaves_nothing_behind_so_it_can_be_retried()
+    {
+        await using var env = await TestEnv.CreateAsync();
+        await env.Get<TransactionService>().SaveAsync(new Transaction
+        {
+            Direction = Direction.Out, Date = env.Today, AmountCents = 1100, GstCents = 100, Party = "Officeworks",
+        }, [await env.StageFileAsync("receipt.jpg")], []);
+        using var target = new TempFolder();
+        var destination = target.Sub("InvoiceDesk");
+        var mover = env.Get<DataMover>();
+
+        using (File.Open(env.AttachmentFiles().Single(), FileMode.Open, FileAccess.Read, FileShare.None))
+            Assert.ThrowsAny<IOException>(() => mover.MoveTo(destination));
+
+        Assert.False(DataLocation.HasData(destination));
+        Assert.False(Directory.Exists(Path.Combine(destination, "attachments")));
+        Assert.Null(DataLocation.Read(env.Paths.LocalRoot));
+
+        mover.MoveTo(destination);
+        Assert.True(DataLocation.HasData(destination));
+        Assert.Single(Directory.GetFiles(Path.Combine(destination, "attachments"), "*", SearchOption.AllDirectories));
+    }
+
+    [Fact]
     public async Task move_refuses_a_folder_that_already_has_data()
     {
         await using var env = await TestEnv.CreateAsync();

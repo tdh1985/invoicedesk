@@ -28,14 +28,22 @@
     [Parameter] public RenderFragment? HeadExtra { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
 
-    protected override void OnInitialized() => Shortcuts.Pressed += OnKey;
+    IDisposable? _overlay;
 
-    void OnKey(string key)
+    // esc goes to whichever overlay opened last
+    protected override void OnParametersSet()
     {
-        if (key == "escape" && Open) InvokeAsync(CloseAsync);
+        if (Open) _overlay ??= Shortcuts.AddOverlay(() => _ = InvokeAsync(CloseAsync));
+        else ReleaseOverlay();
     }
 
     Task CloseAsync() => OnClose.InvokeAsync();
 
-    public void Dispose() => Shortcuts.Pressed -= OnKey;
+    void ReleaseOverlay()
+    {
+        _overlay?.Dispose();
+        _overlay = null;
+    }
+
+    public void Dispose() => ReleaseOverlay();
 }

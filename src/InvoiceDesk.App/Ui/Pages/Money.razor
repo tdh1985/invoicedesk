@@ -5,6 +5,7 @@
 @inject InvoiceService InvoiceStore
 @inject CategoryService Categories
 @inject ToastService Toasts
+@inject NavigationManager Nav
 @inject TimeProvider Clock
 
 <div class="page">
@@ -261,6 +262,8 @@
     {
         _drawerOpen = false;
         _openId = null;
+        // an unchanged url wouldn't open the drawer again from search
+        if (NewQuery is not null || OpenQuery is not null) Nav.NavigateTo("money", replace: true);
     }
 
     async Task OnDrawerDoneAsync()

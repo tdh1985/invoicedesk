@@ -74,7 +74,7 @@
     }
 </div>
 
-<ClientDrawer Open="_adding" OnSaved="OnSavedAsync" OnClose="() => _adding = false" />
+<ClientDrawer Open="_adding" OnSaved="OnSavedAsync" OnClose="StopAdding" />
 
 @code {
     [SupplyParameterFromQuery(Name = "new")] public int? NewFlag { get; set; }
@@ -97,10 +97,14 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _adding = NewFlag == 1;
         ClientStore.Changed += OnStoreChanged;
         Toasts.Changed += OnToastsChanged;
         await LoadAsync();
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (NewFlag == 1) _adding = true;
     }
 
     async Task LoadAsync() =>
@@ -133,7 +137,14 @@
 
     async Task OnSavedAsync(Client client)
     {
-        _adding = false;
+        StopAdding();
         await LoadAsync();
+    }
+
+    void StopAdding()
+    {
+        _adding = false;
+        // an unchanged url wouldn't open the drawer again from search
+        if (NewFlag is not null) Nav.NavigateTo("clients", replace: true);
     }
 }

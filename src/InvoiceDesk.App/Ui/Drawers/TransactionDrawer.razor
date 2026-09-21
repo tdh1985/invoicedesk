@@ -120,7 +120,9 @@
     IReadOnlyList<string>? _errors;
     bool _autoGst;
     bool _saving;
-    bool _wasOpen;
+    Request? _loaded;
+
+    sealed record Request(int? TransactionId, Direction Direction);
 
     string DrawerTitle => _tx switch
     {
@@ -134,15 +136,16 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        if (Open && !_wasOpen)
+        if (!Open)
         {
-            _wasOpen = true;
-            await LoadAsync();
+            _loaded = null;
+            return;
         }
-        else if (!Open)
-        {
-            _wasOpen = false;
-        }
+        // search can pick a different entry while the drawer is already open
+        var request = new Request(TransactionId, Direction);
+        if (request == _loaded) return;
+        _loaded = request;
+        await LoadAsync();
     }
 
     async Task LoadAsync()

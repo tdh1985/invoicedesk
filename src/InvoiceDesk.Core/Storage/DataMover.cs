@@ -19,10 +19,23 @@ public sealed class DataMover(AppPaths paths)
 
         Directory.CreateDirectory(destination);
         var copy = new AppPaths(destination, paths.LocalRoot);
-        SqliteCopy.To(paths.Database, copy.Database);
-        CopyFolder(paths.Attachments, copy.Attachments);
-        CopyFolder(paths.Exports, copy.Exports);
-        CopyFolder(paths.Backups, copy.Backups);
+        string[] folders = [copy.Attachments, copy.Exports, copy.Backups];
+        var created = folders.Where(f => !Directory.Exists(f)).ToList();
+        var copied = new List<string>();
+        try
+        {
+            CopyFolder(paths.Attachments, copy.Attachments, copied);
+            CopyFolder(paths.Exports, copy.Exports, copied);
+            CopyFolder(paths.Backups, copy.Backups, copied);
+            // the database marks a folder as usable so it only lands once the rest has
+            SqliteCopy.To(paths.Database, copy.Database);
+        }
+        catch
+        {
+            // a half copy would block a retry and could be adopted by mistake
+            RemovePartialCopy([.. copied, copy.Database], created);
+            throw;
+        }
 
         DataLocation.Save(paths.LocalRoot, destination);
     }
@@ -45,7 +58,7 @@ public sealed class DataMover(AppPaths paths)
         return DataLocation.HasData(child) ? Path.GetFullPath(child) : null;
     }
 
-    static void CopyFolder(string from, string to)
+    static void CopyFolder(string from, string to, List<string> copied)
     {
         if (!Directory.Exists(from)) return;
         foreach (var file in Directory.EnumerateFiles(from, "*", SearchOption.AllDirectories))
@@ -53,6 +66,19 @@ public sealed class DataMover(AppPaths paths)
             var target = Path.Combine(to, Path.GetRelativePath(from, file));
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
             File.Copy(file, target, overwrite: false);
+            copied.Add(target);
         }
+    }
+
+    static void RemovePartialCopy(IEnumerable<string> files, IEnumerable<string> createdFolders)
+    {
+        try
+        {
+            foreach (var file in files)
+                if (File.Exists(file)) File.Delete(file);
+            foreach (var folder in createdFolders)
+                if (Directory.Exists(folder)) Directory.Delete(folder, recursive: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
 }

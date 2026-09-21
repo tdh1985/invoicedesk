@@ -283,12 +283,24 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        // our own url swap after the first save must not reload the form
-        if (_invoice is { Id: > 0 } current && current.Id == Id) return;
         var key = $"{Id}|{ClientId}|{DuplicateOf}";
         if (key == _loadedKey) return;
         _loadedKey = key;
+        // our own url swap after the first save must not reload the form
+        if (_invoice is { Id: > 0 } current && current.Id == Id) return;
+        await SaveBeforeSwitchAsync();
         await LoadAsync();
+    }
+
+    // the router reuses this page so a pending save must land on the old invoice
+    async Task SaveBeforeSwitchAsync()
+    {
+        _debounce?.Cancel();
+        while (_saving) await Task.Delay(40);
+        if (!_dirty) return;
+        _leaving = true;
+        try { await SaveNowAsync(); }
+        finally { _leaving = false; }
     }
 
     async Task LoadAsync()

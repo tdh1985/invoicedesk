@@ -29,7 +29,14 @@
 
     bool _focused;
 
-    protected override void OnInitialized() => Shortcuts.Pressed += OnKey;
+    IDisposable? _overlay;
+
+    // esc goes to whichever overlay opened last
+    protected override void OnParametersSet()
+    {
+        if (Open) _overlay ??= Shortcuts.AddOverlay(() => _ = InvokeAsync(CloseAsync));
+        else ReleaseOverlay();
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -41,12 +48,13 @@
         if (!Open) _focused = false;
     }
 
-    void OnKey(string key)
-    {
-        if (key == "escape" && Open) InvokeAsync(CloseAsync);
-    }
-
     Task CloseAsync() => OnClose.InvokeAsync();
 
-    public void Dispose() => Shortcuts.Pressed -= OnKey;
+    void ReleaseOverlay()
+    {
+        _overlay?.Dispose();
+        _overlay = null;
+    }
+
+    public void Dispose() => ReleaseOverlay();
 }
