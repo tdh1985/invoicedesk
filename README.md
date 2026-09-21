@@ -6,6 +6,15 @@ it follows GST rules. It runs as one exe and keeps your data on your own PC.
 
 ![The dashboard, showing what clients owe, money in and out, and recent activity](docs/screenshots/dashboard.png)
 
+## Download
+
+**[Download InvoiceDesk.exe](https://github.com/tdh1985/invoicedesk/releases/latest/download/InvoiceDesk.exe)**
+for Windows 10 and 11 (64-bit), or see [all releases](https://github.com/tdh1985/invoicedesk/releases).
+
+It's a single file with nothing to install. The exe isn't code-signed yet, so
+Windows SmartScreen may say it protected your PC. Click **More info**, then
+**Run anyway**.
+
 ## Features
 
 - Invoices with GST turned on or off per invoice. The heading switches between
