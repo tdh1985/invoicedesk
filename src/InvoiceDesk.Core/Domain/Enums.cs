@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Tim Downey. Licensed under the MIT License.
+
 namespace InvoiceDesk.Core.Domain;
 
 public enum InvoiceStatus { Draft = 0, Sent = 1, Void = 2 }

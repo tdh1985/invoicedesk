@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Tim Downey. Licensed under the MIT License.
+
 using InvoiceDesk.App.Host;
 using InvoiceDesk.App.Pdf;
 using Microsoft.Extensions.DependencyInjection;

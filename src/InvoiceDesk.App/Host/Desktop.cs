@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Tim Downey. Licensed under the MIT License.
+
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;

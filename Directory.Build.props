@@ -1,0 +1,10 @@
+<Project>
+
+  <!-- shows in the exe's file properties and every assembly -->
+  <PropertyGroup>
+    <Authors>Tim Downey</Authors>
+    <Company>Tim Downey</Company>
+    <Copyright>Copyright (c) 2026 Tim Downey</Copyright>
+  </PropertyGroup>
+
+</Project>

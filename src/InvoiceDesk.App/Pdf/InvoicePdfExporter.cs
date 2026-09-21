@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Tim Downey. Licensed under the MIT License.
+
 using System.IO;
 using System.Net;
 using InvoiceDesk.App.Host;

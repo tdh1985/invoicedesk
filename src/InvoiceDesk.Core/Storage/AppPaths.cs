@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Tim Downey. Licensed under the MIT License.
+
 namespace InvoiceDesk.Core.Storage;
 
 // data files can live in a synced folder, but caches and window prefs always stay on this pc

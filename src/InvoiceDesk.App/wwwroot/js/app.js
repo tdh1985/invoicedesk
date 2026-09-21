@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Tim Downey. Licensed under the MIT License.
+
 // small browser-side helpers; everything else lives in c#
 window.invoicedesk = {
     init(ref) {

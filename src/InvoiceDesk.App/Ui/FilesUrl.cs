@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Tim Downey. Licensed under the MIT License.
+
 namespace InvoiceDesk.App.Ui;
 
 // the webview maps made-up hosts onto folders so receipts, logos and previews can be shown

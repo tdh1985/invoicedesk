@@ -483,3 +483,6 @@ $RECYCLE.BIN/
 
 # single exe output
 dist/
+
+# the single exe publish profile has no secrets and is needed to build dist/
+!src/InvoiceDesk.App/Properties/PublishProfiles/SingleExe.pubxml

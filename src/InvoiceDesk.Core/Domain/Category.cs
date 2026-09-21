@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Tim Downey. Licensed under the MIT License.
+
 namespace InvoiceDesk.Core.Domain;
 
 public class Category

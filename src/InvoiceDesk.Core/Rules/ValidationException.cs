@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Tim Downey. Licensed under the MIT License.
+
 namespace InvoiceDesk.Core.Rules;
 
 // carries every problem at once so the ui can show them together
