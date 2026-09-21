@@ -4,6 +4,8 @@ A Windows desktop app for sending invoices to clients and keeping track of
 money in and out. Made for Australian sole traders and small businesses, so
 it follows GST rules. It runs as one exe and keeps your data on your own PC.
 
+![The dashboard, showing what clients owe, money in and out, and recent activity](docs/screenshots/dashboard.png)
+
 ## Features
 
 - Invoices with GST turned on or off per invoice. The heading switches between
@@ -22,6 +24,26 @@ it follows GST rules. It runs as one exe and keeps your data on your own PC.
 - Light and dark themes.
 - Your data can live in a OneDrive, Dropbox or Google Drive folder so you can
   use it on another PC, one PC at a time.
+
+## Screenshots
+
+The business and clients in these are made up.
+
+**Writing an invoice, with the live preview beside it**
+
+![The invoice editor with a tax invoice preview](docs/screenshots/invoice-editor.png)
+
+**Invoices, with drafts, part-paid and overdue ones picked out**
+
+![The invoice list with status filters](docs/screenshots/invoices.png)
+
+**Money in and out for the financial year**
+
+![Income and expenses with categories and GST](docs/screenshots/money.png)
+
+**Dark theme**
+
+![The dashboard in the dark theme](docs/screenshots/dashboard-dark.png)
 
 ## Requirements
 
