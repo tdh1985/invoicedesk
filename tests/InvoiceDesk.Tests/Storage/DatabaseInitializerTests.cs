@@ -49,6 +49,18 @@ public class DatabaseInitializerTests
     }
 
     [Fact]
+    public async Task database_uses_a_rollback_journal()
+    {
+        await using var env = await TestEnv.CreateAsync();
+        await using var db = await env.Get<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
+        await db.Database.OpenConnectionAsync();
+        await using var command = db.Database.GetDbConnection().CreateCommand();
+        command.CommandText = "PRAGMA journal_mode";
+
+        Assert.Equal("delete", (string?)await command.ExecuteScalarAsync());
+    }
+
+    [Fact]
     public async Task clears_staging_on_start()
     {
         await using var env = await TestEnv.CreateAsync();

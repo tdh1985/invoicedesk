@@ -9,7 +9,7 @@ public sealed class ValidationException(IReadOnlyList<string> errors) : Exceptio
 
     public IReadOnlyList<string> Errors { get; } = errors;
 
-    public static void ThrowIfAny(List<string> errors)
+    public static void ThrowIfAny(IReadOnlyList<string> errors)
     {
         if (errors.Count > 0) throw new ValidationException(errors);
     }

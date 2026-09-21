@@ -2,7 +2,6 @@
 
 using InvoiceDesk.Core.Domain;
 using InvoiceDesk.Core.Storage;
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace InvoiceDesk.Core.Data;
@@ -39,15 +38,7 @@ public sealed class DatabaseInitializer(
         var target = Path.Combine(paths.Backups, $"invoicedesk-{clock.GetLocalNow():yyyyMMdd-HHmmss}.db");
         if (File.Exists(target)) File.Delete(target);
 
-        // vacuum into runs as a normal statement so it retries while the file is busy
-        using (var source = new SqliteConnection($"Data Source={paths.Database};Pooling=False"))
-        {
-            source.Open();
-            using var command = source.CreateCommand();
-            command.CommandText = "VACUUM INTO $target";
-            command.Parameters.AddWithValue("$target", target);
-            command.ExecuteNonQuery();
-        }
+        SqliteCopy.To(paths.Database, target);
 
         var stale = Directory.GetFiles(paths.Backups, "invoicedesk-*.db")
             .OrderByDescending(f => f, StringComparer.Ordinal)

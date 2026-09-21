@@ -2,7 +2,7 @@
 
 namespace InvoiceDesk.App.Ui;
 
-// stroke icons drawn on a 24px grid, kept inline so nothing loads from the network
+// 24px stroke icons kept inline so nothing loads from the network
 public static class Icons
 {
     static readonly Dictionary<string, string> Paths = new()
@@ -17,7 +17,6 @@ public static class Icons
         ["x"] = """<path d="M18 6 6 18M6 6l12 12"/>""",
         ["check"] = """<path d="M20 6 9 17l-5-5"/>""",
         ["chevron-down"] = """<path d="m6 9 6 6 6-6"/>""",
-        ["chevron-right"] = """<path d="m9 6 6 6-6 6"/>""",
         ["chevron-left"] = """<path d="m15 6-6 6 6 6"/>""",
         ["download"] = """<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>""",
         ["send"] = """<path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/>""",
@@ -38,19 +37,10 @@ public static class Icons
         ["ban"] = """<circle cx="12" cy="12" r="9"/><path d="m5.7 5.7 12.6 12.6"/>""",
         ["more"] = """<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>""",
         ["image"] = """<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/>""",
-        ["calendar"] = """<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>""",
         ["archive"] = """<rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8M10 12h4"/>""",
         ["undo"] = """<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>""",
-        ["eye"] = """<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>""",
-        ["building"] = """<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01"/>""",
-        ["percent"] = """<path d="M19 5 5 19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>""",
-        ["bank"] = """<path d="M3 21h18M5 21V10M19 21V10M9 21v-8M15 21v-8M2 10l10-6 10 6z"/>""",
         ["hash"] = """<path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/>""",
-        ["palette"] = """<path d="M12 22a10 10 0 1 1 10-10c0 2.8-2.2 4-4 4h-2a2 2 0 0 0-1.5 3.3A1.6 1.6 0 0 1 12 22z"/><circle cx="7.5" cy="10.5" r="1"/><circle cx="12" cy="7" r="1"/><circle cx="16.5" cy="10.5" r="1"/>""",
-        ["tag"] = """<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/>""",
         ["database"] = """<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>""",
-        ["stamp"] = """<path d="M9 13V9.5a3 3 0 1 1 6 0V13"/><path d="M4 17a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v1H4z"/><path d="M5 21h14"/>""",
-        ["clock"] = """<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>""",
         ["refresh"] = """<path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/>""",
     };
 

@@ -2,22 +2,14 @@
 
 using InvoiceDesk.Core;
 using InvoiceDesk.Core.Data;
+using InvoiceDesk.Core.Services;
 using InvoiceDesk.Core.Storage;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace InvoiceDesk.Tests.TestSupport;
 
-public sealed class FixedClock(DateTimeOffset now) : TimeProvider
-{
-    public DateTimeOffset Now { get; set; } = now;
-    public override DateTimeOffset GetUtcNow() => Now;
-    public override TimeZoneInfo LocalTimeZone => TimeZoneInfo.Utc;
-    public void Advance(TimeSpan by) => Now += by;
-    public void SetToday(DateOnly day) => Now = new DateTimeOffset(day.ToDateTime(new TimeOnly(10, 0)), TimeSpan.Zero);
-}
-
-// a throwaway data root with a real sqlite file, so services run exactly as in the app
+// a throwaway data root with real sqlite so services run as in the app
 public sealed class TestEnv : IAsyncDisposable
 {
     public static readonly DateOnly DefaultToday = new(2026, 9, 12);
@@ -36,7 +28,7 @@ public sealed class TestEnv : IAsyncDisposable
     public AppPaths Paths { get; }
     public FixedClock Clock { get; }
     public ServiceProvider Services { get; }
-    public DateOnly Today => DateOnly.FromDateTime(Clock.GetLocalNow().DateTime);
+    public DateOnly Today => Clock.Today();
 
     public static async Task<TestEnv> CreateAsync(DateOnly? today = null)
     {
@@ -52,7 +44,7 @@ public sealed class TestEnv : IAsyncDisposable
     {
         await Services.DisposeAsync();
         SqliteConnection.ClearAllPools();
-        try { Directory.Delete(Paths.Root, recursive: true); }
+        try { Directory.Delete(Paths.DataRoot, recursive: true); }
         catch (IOException) { }
         catch (UnauthorizedAccessException) { }
     }

@@ -9,6 +9,8 @@ public sealed class ThemeService(PrefsStore prefs)
 {
     public static readonly string[] Choices = ["system", "light", "dark"];
 
+    public static string Label(string choice) => choice switch { "light" => "Light", "dark" => "Dark", _ => "Match Windows" };
+
     public string Theme => prefs.Current.Theme;
     public bool IsDark { get; private set; }
 

@@ -9,8 +9,6 @@ namespace InvoiceDesk.Core.Services;
 
 public sealed class CategoryService(IDbContextFactory<AppDbContext> factory)
 {
-    public event Action? Changed;
-
     public async Task<List<Category>> ListAsync(Direction? direction = null, bool includeArchived = false)
     {
         await using var db = await factory.CreateDbContextAsync();
@@ -41,7 +39,6 @@ public sealed class CategoryService(IDbContextFactory<AppDbContext> factory)
         entity.Name = name;
         entity.IsArchived = category.IsArchived;
         await db.SaveChangesAsync();
-        Changed?.Invoke();
         return entity;
     }
 
@@ -52,10 +49,9 @@ public sealed class CategoryService(IDbContextFactory<AppDbContext> factory)
         if (category is null) return;
         category.IsArchived = archived;
         await db.SaveChangesAsync();
-        Changed?.Invoke();
     }
 
-    // invoice payments land here, recreated if someone archived or renamed it away
+    // payments need somewhere to land even if sales was renamed or archived
     public async Task<Category> GetSalesAsync()
     {
         await using var db = await factory.CreateDbContextAsync();

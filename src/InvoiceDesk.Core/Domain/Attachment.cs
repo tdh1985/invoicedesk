@@ -17,5 +17,4 @@ public class Attachment
     public int? InvoiceId { get; set; }
 
     public bool IsImage => ContentType.StartsWith("image/", StringComparison.Ordinal);
-    public bool IsPdf => ContentType == "application/pdf";
 }

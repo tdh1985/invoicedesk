@@ -237,7 +237,6 @@
     bool _dirty;
     bool _saving;
     bool _saveQueued;
-    DateTime? _savedAt;
     IReadOnlyList<string>? _saveErrors;
 
     List<string> _issueErrors = [];
@@ -263,7 +262,7 @@
 
     string NumberPreview => _profile is null ? "" : InvoiceNumbering.Format(_profile.InvoicePrefix, _profile.NextInvoiceNumber, _profile.NumberPadding);
 
-    string? LogoUrl => _profile?.LogoAttachment is { } logo ? FilesUrl.For(logo.StoredPath) : null;
+    string? LogoUrl => FilesUrl.Logo(_profile);
 
     int TermDays => _invoice is null ? 0 : _invoice.DueDate.DayNumber - _invoice.IssueDate.DayNumber;
 
@@ -492,7 +491,6 @@
             _invoice.Status = saved.Status;
             _invoice.CreatedAt = saved.CreatedAt;
             _dirty = version != _version;
-            _savedAt = Clock.Now();
             if (first && !_leaving) Nav.NavigateTo($"invoices/{saved.Id}/edit", replace: true);
             return true;
         }

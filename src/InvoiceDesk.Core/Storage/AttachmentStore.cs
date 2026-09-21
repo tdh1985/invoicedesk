@@ -45,7 +45,7 @@ public sealed class AttachmentStore(AppPaths paths, TimeProvider clock)
             await using (var target = File.Create(full)) await content.CopyToAsync(target, ct);
             var actual = new FileInfo(full).Length;
             if (ValidationError(originalFileName, actual) is { } sizeError) throw new ValidationException(sizeError);
-            return new StagedFile(full, Path.GetFileName(originalFileName), actual, "staging/" + name);
+            return new StagedFile(full, Path.GetFileName(originalFileName), "staging/" + name);
         }
         catch
         {

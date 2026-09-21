@@ -6,7 +6,7 @@ public static class Abn
 {
     static readonly int[] Weights = [10, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19];
 
-    // ato checksum: take 1 from the first digit, weight each digit, total must divide by 89
+    // the ato checksum catches typos before an abn lands on an invoice
     public static bool IsValid(string? abn)
     {
         var digits = Digits(abn);

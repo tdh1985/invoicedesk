@@ -61,11 +61,3 @@ public sealed record DashboardData(
 public enum SearchKind { Client, Invoice, Transaction }
 
 public sealed record SearchResult(SearchKind Kind, int Id, string Title, string Subtitle, long? AmountCents = null, DateOnly? Date = null);
-
-internal static class Text
-{
-    public static string Clean(string? value) => value?.Trim() ?? "";
-
-    public static bool Has(string? haystack, string needle) =>
-        haystack is not null && haystack.Contains(needle, StringComparison.OrdinalIgnoreCase);
-}

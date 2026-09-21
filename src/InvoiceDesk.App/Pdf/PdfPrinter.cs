@@ -8,7 +8,7 @@ using Microsoft.Web.WebView2.Core;
 
 namespace InvoiceDesk.App.Pdf;
 
-// an invisible webview that exists only to print invoices, so pdfs match the preview exactly
+// prints through a hidden webview so pdfs match the on-screen preview exactly
 public sealed class PdfPrinter(AppPaths paths, HostWindow host) : IDisposable
 {
     const double A4WidthInches = 8.27;
@@ -76,8 +76,7 @@ public sealed class PdfPrinter(AppPaths paths, HostWindow host) : IDisposable
         _controller = await _env.CreateCoreWebView2ControllerAsync(host.Handle);
         _controller.IsVisible = false;
         _controller.Bounds = new System.Drawing.Rectangle(0, 0, 794, 1123);
-        _controller.CoreWebView2.SetVirtualHostNameToFolderMapping(FilesUrl.Host, paths.DataRoot, CoreWebView2HostResourceAccessKind.Allow);
-        _controller.CoreWebView2.SetVirtualHostNameToFolderMapping(FilesUrl.LocalHost, paths.LocalRoot, CoreWebView2HostResourceAccessKind.Allow);
+        FilesUrl.MapHosts(_controller.CoreWebView2, paths);
         return _controller.CoreWebView2;
     }
 

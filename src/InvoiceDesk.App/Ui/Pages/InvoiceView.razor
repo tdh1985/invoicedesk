@@ -1,6 +1,5 @@
 @* Copyright (c) 2026 Tim Downey. Licensed under the MIT License. *@
 @page "/invoices/{Id:int}"
-@implements IDisposable
 @inject InvoiceService InvoiceStore
 @inject ProfileService Profiles
 @inject InvoicePdfExporter Pdf
@@ -166,7 +165,7 @@
 
     bool CanEdit => _invoice is { Status: not InvoiceStatus.Void } && _invoice.Payments.Count == 0;
 
-    string? LogoUrl => _profile?.LogoAttachment is { } logo ? FilesUrl.For(logo.StoredPath) : null;
+    string? LogoUrl => FilesUrl.Logo(_profile);
 
     protected override async Task OnParametersSetAsync()
     {
@@ -270,9 +269,5 @@
         {
             Toasts.Error(ex);
         }
-    }
-
-    public void Dispose()
-    {
     }
 }

@@ -29,7 +29,7 @@ public partial class App : Application
         base.OnStartup(e);
 
         var paths = AppPaths.Default();
-        // a synced folder can be missing for a moment, for example before onedrive signs in
+        // a synced folder can vanish briefly, such as before onedrive signs in
         while (paths.IsCustomLocation && !DataLocation.HasData(paths.DataRoot))
         {
             var choice = MessageBox.Show(
@@ -47,7 +47,7 @@ public partial class App : Application
             }
         }
 
-        _instance = new SingleInstance(paths.Root);
+        _instance = new SingleInstance(paths.DataRoot);
         if (!_instance.IsFirst)
         {
             _instance.SignalFirst();
@@ -56,7 +56,7 @@ public partial class App : Application
         }
 
         paths.EnsureCreated();
-        FileLog.Initialise(paths.Logs);
+        FileLog.Initialize(paths.Logs);
         DispatcherUnhandledException += OnDispatcherException;
         AppDomain.CurrentDomain.UnhandledException += (_, args) => FileLog.Write(args.ExceptionObject as Exception, "unhandled");
         TaskScheduler.UnobservedTaskException += (_, args) =>

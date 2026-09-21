@@ -1,14 +1,11 @@
 // Copyright (c) 2026 Tim Downey. Licensed under the MIT License.
 
 using InvoiceDesk.Core.Rules;
-using Microsoft.Data.Sqlite;
 
 namespace InvoiceDesk.Core.Storage;
 
 public sealed class DataMover(AppPaths paths)
 {
-    static readonly string[] Folders = ["attachments", "exports", "backups"];
-
     // copies rather than moves so the old folder stays behind as a spare
     public void MoveTo(string target)
     {
@@ -21,15 +18,11 @@ public sealed class DataMover(AppPaths paths)
             throw new ValidationException("That folder already has InvoiceDesk data. Use \"Use data from another PC\" to switch to it instead.");
 
         Directory.CreateDirectory(destination);
-        using (var source = new SqliteConnection($"Data Source={paths.Database};Pooling=False"))
-        {
-            source.Open();
-            using var command = source.CreateCommand();
-            command.CommandText = "VACUUM INTO $target";
-            command.Parameters.AddWithValue("$target", Path.Combine(destination, AppPaths.DatabaseFileName));
-            command.ExecuteNonQuery();
-        }
-        foreach (var folder in Folders) CopyFolder(Path.Combine(paths.DataRoot, folder), Path.Combine(destination, folder));
+        var copy = new AppPaths(destination, paths.LocalRoot);
+        SqliteCopy.To(paths.Database, copy.Database);
+        CopyFolder(paths.Attachments, copy.Attachments);
+        CopyFolder(paths.Exports, copy.Exports);
+        CopyFolder(paths.Backups, copy.Backups);
 
         DataLocation.Save(paths.LocalRoot, destination);
     }

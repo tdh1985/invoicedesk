@@ -1,8 +1,8 @@
 @* Copyright (c) 2026 Tim Downey. Licensed under the MIT License. *@
 <div class="affix">
     <span class="affix-text">$</span>
-    <input id="@Id" class="input num @Class" inputmode="decimal" placeholder="0.00" autocomplete="off"
-           aria-label="@AriaLabel" disabled="@Disabled" value="@_text"
+    <input id="@Id" class="input num" inputmode="decimal" placeholder="0.00" autocomplete="off"
+           aria-label="@AriaLabel" value="@_text"
            @oninput="OnInputAsync" @onchange="OnChangeAsync" @onkeydown="OnKeyDown" />
 </div>
 
@@ -10,9 +10,7 @@
     [Parameter] public long Cents { get; set; }
     [Parameter] public EventCallback<long> CentsChanged { get; set; }
     [Parameter] public string? Id { get; set; }
-    [Parameter] public string? Class { get; set; }
     [Parameter] public string? AriaLabel { get; set; }
-    [Parameter] public bool Disabled { get; set; }
     [Parameter] public EventCallback<KeyboardEventArgs> OnKeyDown { get; set; }
 
     string _text = "";

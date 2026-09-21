@@ -5,7 +5,7 @@ using InvoiceDesk.Core.Rules;
 
 namespace InvoiceDesk.Tests.Rules;
 
-public class StatusTests
+public class InvoiceStatusResolverTests
 {
     static readonly DateOnly Today = new(2026, 9, 12);
 
@@ -21,7 +21,7 @@ public class StatusTests
     [Fact] public void due_today_is_not_overdue() => Assert.Equal(DisplayStatus.Sent, R(InvoiceStatus.Sent, 100, 0, 0));
 }
 
-public class NumberingTests
+public class InvoiceNumberingTests
 {
     [Theory]
     [InlineData("INV-", 42, 4, "INV-0042")]
@@ -48,7 +48,7 @@ public class AbnTests
     [Fact] public void format_leaves_bad_input_alone() => Assert.Equal("12 3", Abn.Format("12 3"));
 }
 
-public class PeriodTests
+public class FinancialPeriodsTests
 {
     [Fact]
     public void fy_starts_first_of_july()

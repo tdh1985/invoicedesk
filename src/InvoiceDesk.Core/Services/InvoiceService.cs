@@ -134,7 +134,7 @@ public sealed class InvoiceService(
         if (inv.Status == InvoiceStatus.Void) throw new ValidationException("Void invoices can't be sent.");
 
         var profile = await db.Profiles.AsNoTracking().SingleAsync();
-        ValidationException.ThrowIfAny(ValidateForIssue(inv, profile).ToList());
+        ValidationException.ThrowIfAny(ValidateForIssue(inv, profile));
 
         Attachment? pdf = null;
         if (pdfPath is not null)
@@ -265,7 +265,7 @@ public sealed class InvoiceService(
             .ToList();
     }
 
-    // skips numbers already used so lowering the counter in settings can't create duplicates
+    // skip used numbers so lowering the counter can't create duplicates
     static async Task<string> NextNumberAsync(AppDbContext db, BusinessProfile profile)
     {
         var used = (await db.Invoices.Select(i => i.Number).ToListAsync()).ToHashSet(StringComparer.OrdinalIgnoreCase);

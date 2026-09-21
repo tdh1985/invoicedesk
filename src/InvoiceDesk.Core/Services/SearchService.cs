@@ -10,8 +10,9 @@ namespace InvoiceDesk.Core.Services;
 public sealed class SearchService(IDbContextFactory<AppDbContext> factory)
 {
     const int PerKind = 5;
+    const int MaxResults = 12;
 
-    public async Task<List<SearchResult>> SearchAsync(string? query, int limit = 12)
+    public async Task<List<SearchResult>> SearchAsync(string? query)
     {
         var term = Text.Clean(query);
         if (term.Length == 0) return [];
@@ -36,6 +37,6 @@ public sealed class SearchService(IDbContextFactory<AppDbContext> factory)
             .Select(t => new SearchResult(SearchKind.Transaction, t.Id, t.Party.Length > 0 ? t.Party : t.Description,
                 t.Direction == Direction.In ? "Money in" : "Money out", t.AmountCents, t.Date));
 
-        return clients.Concat(invoices).Concat(txs).Take(limit).ToList();
+        return clients.Concat(invoices).Concat(txs).Take(MaxResults).ToList();
     }
 }

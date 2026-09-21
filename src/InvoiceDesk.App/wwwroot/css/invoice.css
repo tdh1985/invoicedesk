@@ -94,7 +94,6 @@
     font-weight: 600;
     text-align: left;
 }
-.doc-lines th.n { text-align: right; }
 .doc-lines td { padding: 11px 0; border-bottom: 1px solid var(--doc-rule); vertical-align: top; }
 .doc-lines td.n, .doc-lines th.n { padding-left: 18px; width: 1%; }
 .doc-lines tr { break-inside: avoid; }

@@ -225,7 +225,7 @@
                                 @foreach (var choice in ThemeService.Choices)
                                 {
                                     <button type="button" class="@(Theme.Theme == choice ? "on" : null)" aria-pressed="@(Theme.Theme == choice)"
-                                            @onclick="() => Theme.Set(choice)">@ThemeLabel(choice)</button>
+                                            @onclick="() => Theme.Set(choice)">@ThemeService.Label(choice)</button>
                                 }
                             </div>
                         </div>
@@ -443,8 +443,6 @@
         await Categories.SetArchivedAsync(category.Id, !category.IsArchived);
         await LoadCategoriesAsync();
     }
-
-    static string ThemeLabel(string choice) => choice switch { "light" => "Light", "dark" => "Dark", _ => "Match Windows" };
 
     // data location
 

@@ -42,7 +42,7 @@
                 @foreach (var choice in ThemeService.Choices)
                 {
                     <button type="button" class="@(Theme.Theme == choice ? "on" : null)" aria-pressed="@(Theme.Theme == choice)"
-                            title="@ThemeLabel(choice)" @onclick="() => SetTheme(choice)">
+                            title="@ThemeService.Label(choice)" @onclick="() => SetTheme(choice)">
                         <Icon Name="@ThemeIcon(choice)" Size="15" />
                     </button>
                 }
@@ -93,7 +93,7 @@
     {
         _profile = await Profiles.GetAsync();
         _accent = _profile.AccentColour;
-        _logoUrl = _profile.LogoAttachment is { } logo ? FilesUrl.For(logo.StoredPath) : null;
+        _logoUrl = FilesUrl.Logo(_profile);
     }
 
     [JSInvokable]
@@ -123,8 +123,6 @@
     void Recover() => _boundary?.Recover();
 
     static string ThemeIcon(string choice) => choice switch { "light" => "sun", "dark" => "moon", _ => "monitor" };
-
-    static string ThemeLabel(string choice) => choice switch { "light" => "Light", "dark" => "Dark", _ => "Match Windows" };
 
     void OnProfileChanged() => InvokeAsync(async () =>
     {

@@ -2,8 +2,8 @@
 
 namespace InvoiceDesk.Core.Storage;
 
-// a file picked in the ui but not saved yet, kept in staging so it can be previewed
-public sealed record StagedFile(string TempPath, string OriginalFileName, long SizeBytes, string RelativePath)
+// picked in the ui but not saved yet, kept in staging for the preview
+public sealed record StagedFile(string TempPath, string OriginalFileName, string RelativePath)
 {
     public string ContentType => AttachmentStore.ContentTypeFor(OriginalFileName);
     public bool IsImage => ContentType.StartsWith("image/", StringComparison.Ordinal);

@@ -171,7 +171,7 @@
                                         </span>
                                         <span class="col" style="align-items:flex-end">
                                             <span class="num">@Format.Money(item.AmountCents)</span>
-                                            <span class="list-sub">@DateOnly.FromDateTime(item.At).ToString("d MMM", CultureInfo.InvariantCulture)</span>
+                                            <span class="list-sub">@Format.DateShort(DateOnly.FromDateTime(item.At))</span>
                                         </span>
                                     </a>
                                 </li>

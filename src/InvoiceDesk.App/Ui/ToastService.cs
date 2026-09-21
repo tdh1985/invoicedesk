@@ -53,8 +53,8 @@ public sealed class ToastService
         Show($"That didn't work: {ex.Message}", ToastKind.Error);
     }
 
-    // the item disappears straight away but only really goes once the undo window closes
-    public void ShowUndo(string message, string key, Func<Task> commit, Action? undo = null)
+    // the item hides at once but is only deleted when the undo window closes
+    public void ShowUndo(string message, string key, Func<Task> commit)
     {
         Toast? toast = null;
         toast = new Toast
@@ -70,7 +70,6 @@ public sealed class ToastService
                         _pendingCommits.Remove(toast!.Id);
                         _pendingKeys.Remove(toast.Id);
                     }
-                    undo?.Invoke();
                     Dismiss(toast!.Id);
                     return Task.CompletedTask;
                 }),

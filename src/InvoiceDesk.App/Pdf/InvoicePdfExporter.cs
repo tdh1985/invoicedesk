@@ -42,7 +42,7 @@ public sealed class InvoicePdfExporter(
             {
                 [nameof(InvoiceDocument.Invoice)] = invoice,
                 [nameof(InvoiceDocument.Profile)] = profile,
-                [nameof(InvoiceDocument.LogoUrl)] = profile.LogoAttachment is { } logo ? FilesUrl.For(logo.StoredPath) : null,
+                [nameof(InvoiceDocument.LogoUrl)] = FilesUrl.Logo(profile),
                 [nameof(InvoiceDocument.Today)] = clock.Today(),
             });
             var output = await renderer.RenderComponentAsync<InvoiceDocument>(parameters);

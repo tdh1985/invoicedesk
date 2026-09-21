@@ -30,6 +30,4 @@ public class BusinessProfile
 
     // for the owner only, never printed
     public string PrivateNotes { get; set; } = "";
-
-    public BusinessProfile Clone() => (BusinessProfile)MemberwiseClone();
 }

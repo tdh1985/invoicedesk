@@ -7,7 +7,7 @@ using Microsoft.Extensions.Primitives;
 
 namespace InvoiceDesk.App.Host;
 
-// resources are named wwwroot/<path> by the csproj; msbuild may leave backslashes in them
+// the csproj names resources wwwroot/<path> but msbuild may use backslashes
 public sealed class EmbeddedAssets : IFileProvider
 {
     const string Prefix = "wwwroot/";

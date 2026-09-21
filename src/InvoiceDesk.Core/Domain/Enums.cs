@@ -4,7 +4,7 @@ namespace InvoiceDesk.Core.Domain;
 
 public enum InvoiceStatus { Draft = 0, Sent = 1, Void = 2 }
 
-// what the ui shows, worked out from status, payments and due date
+// never stored, worked out from payments and due date so it can't go stale
 public enum DisplayStatus { Draft, Sent, PartPaid, Paid, Overdue, Void }
 
 public enum Direction { In = 0, Out = 1 }

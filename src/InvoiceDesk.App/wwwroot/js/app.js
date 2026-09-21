@@ -44,7 +44,7 @@ window.invoicedesk = {
         if (typeof el.select === 'function' && el.tagName === 'INPUT') el.select();
     },
 
-    // scales the a4 preview to whatever width its pane has
+    // the a4 page shrinks to fit narrow panes instead of overflowing them
     fitPreview(el) {
         if (!el || el._fit) return;
         const fit = () => {
@@ -54,9 +54,5 @@ window.invoicedesk = {
         el._fit = new ResizeObserver(fit);
         el._fit.observe(el);
         fit();
-    },
-
-    scrollTop(selector) {
-        document.querySelector(selector)?.scrollTo({ top: 0 });
     },
 };

@@ -2,7 +2,7 @@
 
 namespace InvoiceDesk.Core.Storage;
 
-// data files can live in a synced folder, but caches and window prefs always stay on this pc
+// data can live in a synced folder but caches and prefs stay on this pc
 public sealed class AppPaths
 {
     public const string DatabaseFileName = "invoicedesk.db";
@@ -19,7 +19,6 @@ public sealed class AppPaths
 
     public string DataRoot { get; }
     public string LocalRoot { get; }
-    public string Root => DataRoot;
     public bool IsCustomLocation => !string.Equals(DataRoot, LocalRoot, StringComparison.OrdinalIgnoreCase);
 
     public string Database => Path.Combine(DataRoot, DatabaseFileName);
@@ -37,7 +36,7 @@ public sealed class AppPaths
     public static string LocalDefault() =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "InvoiceDesk");
 
-    // INVOICEDESK_LOCAL and INVOICEDESK_DATA let test runs use scratch folders instead of real data
+    // INVOICEDESK_LOCAL or INVOICEDESK_DATA point test runs at scratch folders
     public static AppPaths Default()
     {
         var local = Environment.GetEnvironmentVariable("INVOICEDESK_LOCAL");

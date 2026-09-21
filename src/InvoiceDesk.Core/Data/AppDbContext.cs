@@ -47,7 +47,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         b.Entity<Attachment>(e =>
         {
             e.Ignore(a => a.IsImage);
-            e.Ignore(a => a.IsPdf);
         });
     }
 }

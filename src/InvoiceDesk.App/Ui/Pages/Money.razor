@@ -5,7 +5,6 @@
 @inject InvoiceService InvoiceStore
 @inject CategoryService Categories
 @inject ToastService Toasts
-@inject NavigationManager Nav
 @inject TimeProvider Clock
 
 <div class="page">
@@ -155,7 +154,6 @@
     static readonly (string Tab, string Label)[] Tabs = [("all", "All"), ("in", "Money in"), ("out", "Money out")];
     static readonly string[] Periods = ["month", "quarter", "fy", "all"];
 
-    [SupplyParameterFromQuery(Name = "tab")] public string? TabQuery { get; set; }
     [SupplyParameterFromQuery(Name = "new")] public string? NewQuery { get; set; }
     [SupplyParameterFromQuery(Name = "open")] public int? OpenQuery { get; set; }
 
@@ -190,7 +188,6 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        if (TabQuery is "in" or "out" or "all") _tab = TabQuery;
         if (NewQuery is "in" or "out") StartNew(NewQuery == "in" ? Direction.In : Direction.Out);
         if (OpenQuery is { } id)
         {
