@@ -2,7 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
 <url>
 <loc>https://tdh1985.github.io/invoicedesk/</loc>
-<lastmod>2026-09-28</lastmod>
+<lastmod>2026-09-30</lastmod>
 <image:image><image:loc>https://tdh1985.github.io/invoicedesk/img/invoice-preview.webp</image:loc></image:image>
 <image:image><image:loc>https://tdh1985.github.io/invoicedesk/img/dashboard.webp</image:loc></image:image>
 <image:image><image:loc>https://tdh1985.github.io/invoicedesk/img/receipt-scan.webp</image:loc></image:image>
@@ -10,6 +10,6 @@
 </url>
 <url>
 <loc>https://tdh1985.github.io/invoicedesk/privacy.html</loc>
-<lastmod>2026-09-28</lastmod>
+<lastmod>2026-09-30</lastmod>
 </url>
 </urlset>
